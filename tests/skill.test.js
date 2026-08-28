@@ -7,8 +7,8 @@
  * longer matched the product. So every tool it names must exist, and every count in it
  * must be the count the code actually serves.
  *
- * The copy lives in `skills/SKILL.md` here and is published from the public repo at
- * `skills/signed-in-browser/`; this file is what keeps the two honest.
+ * The skill lives at `skills/signed-in-browser/SKILL.md`, which is the path Smithery
+ * syncs from, so there is one copy rather than two that drift.
  */
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
@@ -17,7 +17,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const skill = readFileSync(join(root, "skills", "SKILL.md"), "utf8");
+const skill = readFileSync(join(root, "skills", "signed-in-browser", "SKILL.md"), "utf8");
 const { TOOL_DEFINITIONS } = await import(join(root, "src", "tools.js"));
 const known = new Set(TOOL_DEFINITIONS.map((t) => t.name));
 

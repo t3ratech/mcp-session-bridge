@@ -1,0 +1,36 @@
+# Smithery onboarding for the T3rnel MCP Session Bridge.
+#
+# The bridge is a stdio server: an MCP client launches it locally and it talks to the
+# T3rnel Browser extension over a native-messaging relay, so the tools run against the
+# browser the user is already signed into. Nothing is hosted, and no key is required.
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties:
+      T3RNEL_SESSION_MODE:
+        type: string
+        enum: [auto, extension, standalone]
+        default: auto
+        description: >-
+          auto uses the T3rnel Browser extension when its relay socket exists and falls
+          back to a standalone automation browser; extension requires the extension;
+          standalone always launches its own browser.
+      T3RNEL_SESSION_HEADLESS:
+        type: string
+        description: Set to "1" to run the standalone browser headless. Ignored in extension mode.
+      T3RNEL_SESSION_TIMEOUT_MS:
+        type: string
+        default: "30000"
+        description: How long a single tool call may take before it fails rather than hanging the client.
+    required: []
+  commandFunction: |-
+    (config) => ({
+      command: "npx",
+      args: ["-y", "@t3ratech/mcp-session-bridge"],
+      env: {
+        T3RNEL_SESSION_MODE: config.T3RNEL_SESSION_MODE || "auto",
+        ...(config.T3RNEL_SESSION_HEADLESS ? { T3RNEL_SESSION_HEADLESS: config.T3RNEL_SESSION_HEADLESS } : {}),
+        ...(config.T3RNEL_SESSION_TIMEOUT_MS ? { T3RNEL_SESSION_TIMEOUT_MS: config.T3RNEL_SESSION_TIMEOUT_MS } : {})
+      }
+    })

@@ -54,10 +54,10 @@
   "homepage": "https://t3ratech.github.io/t3rnel-browser-plugin/",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/t3ratech/t3rnel-browser-plugin.git"
+    "url": "git+https://github.com/t3ratech/mcp-session-bridge.git"
   },
   "bugs": {
-    "url": "https://github.com/t3ratech/t3rnel-browser-plugin/issues"
+    "url": "https://github.com/t3ratech/mcp-session-bridge/issues"
   },
   "author": "T3raTech Solutions (Pvt) Ltd",
   "files": [
