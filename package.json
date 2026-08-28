@@ -1,0 +1,72 @@
+{
+  "name": "@t3ratech/mcp-session-bridge",
+  "version": "1.1.1",
+  "license": "LicenseRef-Proprietary",
+  "description": "MCP server that drives the browser you are already signed into, through the free T3rnel Browser extension — or a standalone automation browser with no extension and no licence. 20 tools on its own, 99 with the extension, over stdio for any Model Context Protocol client.",
+  "type": "module",
+  "bin": {
+    "mcp-session-bridge": "src/server.js",
+    "mcp-session-bridge-host": "src/native-host.js"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "install-host": "node src/server.js --install",
+    "uninstall-host": "node src/server.js --uninstall",
+    "test": "node --test",
+    "build:mcpb": "node scripts/build-mcpb.mjs",
+    "publish:smithery": "node scripts/publish-smithery.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "browser-automation",
+    "chrome-extension",
+    "claude",
+    "claude-code",
+    "claude-desktop",
+    "cursor",
+    "vscode",
+    "windsurf",
+    "antigravity",
+    "intellij",
+    "codex",
+    "grok-build",
+    "kimi",
+    "kimi-desktop",
+    "kimi-webbridge",
+    "jcode",
+    "cline",
+    "opcode",
+    "continue",
+    "kilocode",
+    "roo-code",
+    "aider",
+    "openclaw",
+    "hermes",
+    "openfang",
+    "native-messaging",
+    "cdp",
+    "playwright-alternative"
+  ],
+  "homepage": "https://t3ratech.github.io/t3rnel-browser-plugin/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/t3ratech/t3rnel-browser-plugin.git"
+  },
+  "bugs": {
+    "url": "https://github.com/t3ratech/t3rnel-browser-plugin/issues"
+  },
+  "author": "T3raTech Solutions (Pvt) Ltd",
+  "files": [
+    "src/",
+    "docs/",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "mcpName": "io.github.t3ratech/mcp-session-bridge"
+}

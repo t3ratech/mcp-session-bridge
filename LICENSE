@@ -1,0 +1,23 @@
+Copyright (c) 2026 T3raTech Solutions (Pvt) Ltd. All rights reserved.
+
+The T3rnel MCP Session Bridge is source-available, not open source.
+
+You may:
+  - use the published npm package (@t3ratech/mcp-session-bridge) for any purpose,
+    commercial or otherwise, without charge;
+  - read this source, and modify it locally for your own use;
+  - report issues and propose changes.
+
+You may not, without prior written permission:
+  - redistribute this source or a derivative of it, in whole or in part;
+  - publish a package, service or product derived from it.
+
+This is the bridge only. The T3rnel Browser extension it connects to is a separate,
+closed-source product distributed through the browser extension stores.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
+OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

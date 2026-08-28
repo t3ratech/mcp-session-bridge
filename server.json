@@ -1,0 +1,41 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.t3ratech/mcp-session-bridge",
+  "description": "Drive a browser you are already signed into, through the free T3rnel Browser extension.",
+  "repository": {
+    "url": "https://github.com/t3ratech/t3rnel-browser-plugin",
+    "source": "github"
+  },
+  "version": "1.1.1",
+  "websiteUrl": "https://t3ratech.github.io/t3rnel-browser-plugin/",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "@t3ratech/mcp-session-bridge",
+      "version": "1.1.1",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "T3RNEL_SESSION_MODE",
+          "description": "auto (default) uses the extension when its relay socket exists and falls back to a standalone browser; extension forces the extension; standalone forces its own browser.",
+          "isRequired": false,
+          "default": "auto"
+        },
+        {
+          "name": "T3RNEL_SESSION_HEADLESS",
+          "description": "Set to 1 to run the standalone browser headless. Ignored in extension mode.",
+          "isRequired": false
+        },
+        {
+          "name": "T3RNEL_SESSION_TIMEOUT_MS",
+          "description": "How long a single tool call may take before it fails rather than hanging the client.",
+          "isRequired": false,
+          "default": "30000"
+        }
+      ]
+    }
+  ]
+}
