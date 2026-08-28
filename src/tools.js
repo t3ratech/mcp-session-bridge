@@ -141,6 +141,9 @@ export const TOOL_DEFINITIONS = [
         format: { type: "string", enum: ["png", "jpeg"] },
         quality: { type: "integer", description: "JPEG quality 0-100" },
         windowId: { type: "integer" },
+        // Always honoured by the extension, never advertised — so the boundary rejected
+        // it and a caller working in one specific tab could only capture the active one.
+        tabId: { type: "integer", description: "Tab to capture (defaults to the active tab)" },
       },
       additionalProperties: false,
     },

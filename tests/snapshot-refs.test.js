@@ -93,3 +93,31 @@ describe("a ref that cannot be resolved is refused by name", () => {
     );
   });
 });
+
+/**
+ * Arguments the extension honours must be arguments the boundary accepts.
+ *
+ * `session_screenshot` resolved a `tabId` in its implementation and advertised one
+ * nowhere, so validation rejected the single argument the code wanted. Working in a
+ * named tab is the whole point of this server — the skill's own safety rule is "stay on
+ * the tab you were given" — and screenshotting that tab was the one thing you could not
+ * do. The same shape as the snapshot refs: supported everywhere, offered nowhere.
+ */
+describe("tools that act on a tab accept a tabId", () => {
+  const actsOnATab = TOOL_DEFINITIONS.filter((tool) =>
+    /screenshot|snapshot|read_page|click|fill|type|press|navigate|wait|evaluate/.test(tool.name));
+
+  test("there are such tools, so this is not vacuous", () => {
+    assert.ok(actsOnATab.length >= 8, `only ${actsOnATab.length} tools act on a tab`);
+  });
+
+  test("every one of them takes a tabId", () => {
+    for (const tool of actsOnATab) {
+      assert.ok(
+        tool.inputSchema.properties?.tabId,
+        `${tool.name} acts on a tab but will reject a tabId, so it can only ever use the active one`,
+      );
+      assert.equal(tool.inputSchema.properties.tabId.type, "integer", `${tool.name}.tabId is not an integer`);
+    }
+  });
+});
