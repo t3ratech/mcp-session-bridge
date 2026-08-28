@@ -105,6 +105,23 @@ export const TOOL_DEFINITIONS = [
     },
   },
   {
+    name: "session_select",
+    description: "Choose an option in a <select> dropdown, by value, visible text or index. Filling a select as though it were a text field does nothing.",
+    inputSchema: {
+      type: "object",
+      required: ["selector"],
+      properties: {
+        selector: { type: "string", description: "CSS selector for the <select>" },
+        ref: { type: "string", description: "A ref from session_snapshot, such as @e12, used instead of selector" },
+        value: { type: "string", description: "Option value to choose" },
+        text: { type: "string", description: "Visible option text to choose; matched exactly first, then by substring" },
+        index: { type: "integer", description: "Option index to choose" },
+        tabId: { type: "integer" },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "session_press",
     description: "Press a keyboard key (Enter, Tab, Escape, ...) on the focused element or a specific element.",
     inputSchema: {

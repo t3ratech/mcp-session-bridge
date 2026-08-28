@@ -12,12 +12,17 @@
  */
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const skill = readFileSync(join(root, "skills", "signed-in-browser", "SKILL.md"), "utf8");
+const skillsDir = join(root, "skills");
+const skillNames = readdirSync(skillsDir).filter((name) =>
+  statSync(join(skillsDir, name)).isDirectory());
+const skillText = Object.fromEntries(
+  skillNames.map((name) => [name, readFileSync(join(skillsDir, name, "SKILL.md"), "utf8")]));
+const skill = skillText["signed-in-browser"];
 const { TOOL_DEFINITIONS } = await import(join(root, "src", "tools.js"));
 const known = new Set(TOOL_DEFINITIONS.map((t) => t.name));
 
@@ -85,5 +90,93 @@ describe("the skill describes the server that actually exists", () => {
   test("tells the reader when NOT to use it, so it does not get applied to public pages", () => {
     assert.match(skill, /Public page, no login/i);
     assert.match(skill, /don't reach for this|Don't reach for this/i);
+  });
+});
+
+/**
+ * Every published skill, checked against the server and the sites it describes.
+ *
+ * These are operational instructions other teams follow without checking. A skill naming
+ * a tool that does not exist, or a limit that has moved, sends an agent down a path that
+ * fails for a reason the skill told it to rule out — which is exactly the failure the
+ * signed-in-browser skill exists to prevent, one level up.
+ */
+describe("every skill in this repository", () => {
+  test("there are several, and each has a SKILL.md", () => {
+    assert.ok(skillNames.length >= 3, `only ${skillNames.length} skill(s) found`);
+    for (const name of skillNames) {
+      assert.ok(skillText[name].length > 500, `${name}/SKILL.md is too short to be useful`);
+    }
+  });
+
+  test("each carries frontmatter a host can route on", () => {
+    for (const [name, text] of Object.entries(skillText)) {
+      const frontmatter = text.match(/^---\n([\s\S]*?)\n---/);
+      assert.ok(frontmatter, `${name} has no frontmatter`);
+      assert.match(frontmatter[1], new RegExp(`^name: ${name}$`, "m"), `${name}'s frontmatter name does not match its directory`);
+
+      const description = frontmatter[1].match(/^description: (.+)$/m);
+      assert.ok(description, `${name} has no description`);
+      assert.ok(description[1].length > 100, `${name}'s description is too thin to route a request by`);
+      assert.ok(description[1].length < 1024, `${name}'s description is longer than hosts display`);
+      assert.match(description[1], /Use when/i, `${name} does not say when to use it`);
+    }
+  });
+
+  test("none of them names a session tool that does not exist", () => {
+    for (const [name, text] of Object.entries(skillText)) {
+      const invented = [...new Set(text.match(/session_[a-z_]+/g) ?? [])].filter((t) => !known.has(t));
+      assert.deepEqual(invented, [], `${name} names tools that do not exist: ${invented.join(", ")}`);
+    }
+  });
+
+  test("every link points at something of ours or a site the skill is about", () => {
+    const allowed = /^https?:\/\/(t3ratech\.github\.io|github\.com|smithery\.ai|glama\.ai|mcpservers\.org|news\.ycombinator\.com|hn\.algolia\.com|www\.npmjs\.com)/;
+    for (const [name, text] of Object.entries(skillText)) {
+      for (const url of text.match(/https?:\/\/[^\s<>)"`]+/g) ?? []) {
+        assert.match(url, allowed, `${name} links to ${url}, which is neither ours nor a site it documents`);
+      }
+    }
+  });
+
+  test("the publishing skill records the traps that were paid for", () => {
+    // Each of these cost a failed submission to discover. A skill that loses them is
+    // worth less than the time it took to write.
+    const publish = skillText["publish-mcp-server"];
+    assert.ok(publish, "the publish-mcp-server skill is missing");
+    for (const [what, pattern] of [
+      ["Glama's 400-character description limit", /400 characters/],
+      ["Glama having no /submit page", /no `?\/submit`? page|parsed as a \*?search\*?/i],
+      ["the required category select on mcpservers.org", /required category/i],
+      ["the paid options to leave alone", /\$39|paid option/i],
+      ["a checkbox's value not being its state", /`?value`? is `?"?on"?`?/i],
+      ["Smithery needing inputSchema per tool", /inputSchema/],
+      ["linking to source rather than a marketing site", /source repository, not to a marketing site|not to a marketing site/i],
+      ["mcp.so being excluded and why", /support ticket/i],
+    ]) {
+      assert.match(publish, pattern, `the publishing skill no longer records ${what}`);
+    }
+  });
+
+  test("the Hacker News skill records the rules that make a submission worth spending", () => {
+    const hn = skillText["post-to-hacker-news"];
+    assert.ok(hn, "the post-to-hacker-news skill is missing");
+    assert.match(hn, /80 characters/, "the title length limit is gone");
+    assert.match(hn, /url`? and `?text`? are exclusive|exclusive/i, "the url-or-text rule is gone");
+    assert.match(hn, /\/newest/, "nothing says how to tell a submission succeeded");
+    assert.match(hn, /first comment/i, "the first-comment convention is gone");
+    for (const selector of ["input[name=title]", "input[name=url]", "input[type=submit]"]) {
+      assert.ok(hn.includes(selector), `the HN skill no longer names ${selector}`);
+    }
+  });
+
+  test("each publishing skill says a filled form is not a submission", () => {
+    for (const name of ["publish-mcp-server", "post-to-hacker-news"]) {
+      assert.match(
+        skillText[name],
+        /filled form is not a submission|re-snapshot|did not go/i,
+        `${name} does not say how to tell a submission from a silent failure`,
+      );
+    }
   });
 });

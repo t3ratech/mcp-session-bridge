@@ -111,6 +111,40 @@ const FILL_JS = (selector, ref, value) => `(() => {
   return true;
 })()`;
 
+/**
+ * Choosing from a dropdown, which `FILL_JS` cannot do.
+ *
+ * That setter comes from `HTMLInputElement.prototype`, so assigning through it does
+ * nothing to a `<select>` — and a required dropdown is common enough on real forms that
+ * standalone mode could fill every text field of a submission and still never submit it.
+ * Matches by value, then by visible text, then by index, so a caller can use whichever
+ * the page makes visible.
+ */
+const SELECT_JS = (selector, ref, { value, text, index }) => `(() => {
+  const el = ${ref != null ? `document.querySelector("[data-t3rnel-ref='${ref}']")` : `document.querySelector(${JSON.stringify(selector ?? "")})`};
+  if (!el) throw new Error("Element not found: ${ref ?? selector}");
+  if (el.tagName !== "SELECT") throw new Error("target is not a <select>: ${ref ?? selector}");
+  const options = Array.from(el.options);
+  const wantValue = ${JSON.stringify(value ?? null)};
+  const wantText = ${JSON.stringify(text ?? null)};
+  const wantIndex = ${JSON.stringify(index ?? null)};
+  let chosen = null;
+  if (wantValue !== null) chosen = options.find((o) => o.value === wantValue) ?? null;
+  if (!chosen && wantText !== null) {
+    const needle = String(wantText).trim().toLowerCase();
+    chosen = options.find((o) => (o.textContent || "").trim().toLowerCase() === needle)
+      ?? options.find((o) => (o.textContent || "").trim().toLowerCase().includes(needle)) ?? null;
+  }
+  if (!chosen && wantIndex !== null && options[wantIndex]) chosen = options[wantIndex];
+  if (!chosen) {
+    throw new Error("no option matched; available: " + options.map((o) => o.value + "=" + (o.textContent || "").trim()).join(", ").slice(0, 300));
+  }
+  el.value = chosen.value;
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+  el.dispatchEvent(new Event("change", { bubbles: true }));
+  return { selected: true, value: chosen.value, text: (chosen.textContent || "").trim() };
+})()`;
+
 const READ_PAGE_JS = `(() => {
   const text = (document.body ? document.body.innerText : document.documentElement.innerText) || "";
   return { url: location.href, title: document.title, text: text.slice(0, ${MAX_PAGE_TEXT}), truncated: text.length > ${MAX_PAGE_TEXT} };
@@ -354,6 +388,13 @@ export async function executeStandaloneTool(browser, name, args = {}) {
       await browser.cdp(targetId, "Input.dispatchMouseEvent", { type: "mousePressed", x: point.x, y: point.y, button: "left", clickCount: 1 });
       await browser.cdp(targetId, "Input.dispatchMouseEvent", { type: "mouseReleased", x: point.x, y: point.y, button: "left", clickCount: 1 });
       return text({ clicked: args.ref ?? args.selector });
+    }
+    case "session_select": {
+      const chosen = await browser.evalIn(
+        browser.targetFor(args.tabId),
+        SELECT_JS(args.selector, args.ref, { value: args.value, text: args.text, index: args.index })
+      );
+      return text(chosen);
     }
     case "session_fill": {
       await browser.evalIn(browser.targetFor(args.tabId), FILL_JS(args.selector, args.ref, args.value ?? ""));

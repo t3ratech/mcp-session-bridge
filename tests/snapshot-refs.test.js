@@ -16,7 +16,7 @@ import { createInterface } from "node:readline";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const { TOOL_DEFINITIONS } = await import(join(root, "src", "tools.js"));
@@ -119,5 +119,50 @@ describe("tools that act on a tab accept a tabId", () => {
       );
       assert.equal(tool.inputSchema.properties.tabId.type, "integer", `${tool.name}.tabId is not an integer`);
     }
+  });
+});
+
+/**
+ * Choosing from a dropdown, in both modes.
+ *
+ * `session_select` existed only when the extension relay was connected, and the standalone
+ * fill path sets values through `HTMLInputElement.prototype`'s setter — which does nothing
+ * to a `<select>`. So standalone mode could fill every text field on a submission form and
+ * still never submit it, because the one required control was a dropdown. Found by a real
+ * form that did exactly that.
+ */
+describe("a dropdown can be chosen in standalone mode, not only through the extension", () => {
+  const select = TOOL_DEFINITIONS.find((tool) => tool.name === "session_select");
+
+  test("is one of the tools the bridge serves on its own", () => {
+    assert.ok(select, "session_select is not in the base tool set, so standalone mode cannot pick an option");
+  });
+
+  test("accepts each of the three ways a page makes an option addressable", () => {
+    for (const key of ["value", "text", "index"]) {
+      assert.ok(select.inputSchema.properties[key], `session_select cannot choose by ${key}`);
+    }
+    assert.ok(select.inputSchema.properties.ref, "session_select does not take a snapshot ref");
+    assert.ok(select.inputSchema.properties.tabId, "session_select cannot be aimed at a tab");
+    assert.deepEqual(select.inputSchema.required, ["selector"]);
+  });
+
+  test("says plainly that filling a select does not work, which is the mistake it prevents", () => {
+    assert.match(select.description, /select|dropdown/i);
+    assert.match(
+      select.description,
+      /does nothing|as though it were a text field/i,
+      "the description does not warn that session_fill silently fails on a select",
+    );
+  });
+
+  test("the standalone browser implements it", async () => {
+    const cdp = readFileSync(join(root, "src", "cdp.js"), "utf8");
+    assert.match(cdp, /case "session_select"/, "the standalone executor has no select branch");
+    assert.match(cdp, /SELECT_JS/, "there is no select script for the standalone path");
+    // It has to report what it could not match, or a wrong option name is undebuggable.
+    assert.match(cdp, /no option matched/, "a failed match does not say what the options were");
+    // And it must refuse a non-select rather than appear to succeed.
+    assert.match(cdp, /is not a <select>/, "the standalone path does not refuse a non-select target");
   });
 });
