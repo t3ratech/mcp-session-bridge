@@ -52,7 +52,7 @@ describe("the MCPB manifest describes the server that is actually shipped", () =
     assert.match(manifest.long_description, new RegExp(`serves ${standalone} tools`));
 
     const registry = readFileSync(
-      join(root, "..", "..", "clients", "chrome-extension", "src", "browser-tools.ts"), "utf8",
+      join(root, "..", "..", "products", "browser-extension", "src", "browser-tools.ts"), "utf8",
     );
     const open = registry.indexOf("[", registry.indexOf("export const BROWSER_TOOL_NAMES"));
     const names = [...registry.slice(open, registry.indexOf("] as const", open)).matchAll(/"([a-z0-9_]+)"/g)];

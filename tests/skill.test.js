@@ -7,8 +7,10 @@
  * longer matched the product. So every tool it names must exist, and every count in it
  * must be the count the code actually serves.
  *
- * The skill lives at `skills/signed-in-browser/SKILL.md`, which is the path Smithery
- * syncs from, so there is one copy rather than two that drift.
+ * They live under `agent-skills/`, not `skills/`. In this codebase `skills/` already
+ * means a Rust crate compiled to WASM, with a signed ABI and a registry two crates read
+ * — a different thing entirely from a Markdown file an AI client reads. Smithery syncs
+ * from `agent-skills/<name>/`, so there is one copy rather than two that drift.
  */
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
@@ -17,7 +19,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const skillsDir = join(root, "skills");
+const skillsDir = join(root, "agent-skills");
 const skillNames = readdirSync(skillsDir).filter((name) =>
   statSync(join(skillsDir, name)).isDirectory());
 const skillText = Object.fromEntries(
@@ -39,7 +41,7 @@ describe("the skill describes the server that actually exists", () => {
     assert.match(skill, new RegExp(`serves ${TOOL_DEFINITIONS.length} tools`));
 
     const registry = readFileSync(
-      join(root, "..", "..", "clients", "chrome-extension", "src", "browser-tools.ts"), "utf8",
+      join(root, "..", "..", "products", "browser-extension", "src", "browser-tools.ts"), "utf8",
     );
     const open = registry.indexOf("[", registry.indexOf("export const BROWSER_TOOL_NAMES"));
     const names = [...registry.slice(open, registry.indexOf("] as const", open)).matchAll(/"([a-z0-9_]+)"/g)];
