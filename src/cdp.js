@@ -54,6 +54,59 @@ export function defaultBrowserPath(env = process.env) {
   return null;
 }
 
+/** The last line of browser stderr that says something, ignoring routine noise. */
+export function lastMeaningfulLine(stderr) {
+  const noise = /WARNING:|Gtk-Message|xapp-gtk3-module|^\s*$|DevTools listening|GPU |gcm\/engine|TensorFlow Lite/i;
+  const lines = String(stderr).split("\n").filter((line) => line.trim() && !noise.test(line));
+  return lines.length ? lines[lines.length - 1].trim() : "";
+}
+
+/**
+ * Turns a browser that died on startup into a message naming the cause and the fix.
+ *
+ * The sandbox case is called out by name because it is the one that bites on ordinary
+ * Ubuntu: Chrome for Testing ships no SUID sandbox helper, and the distro's AppArmor
+ * policy denies the unprivileged user namespaces it would otherwise fall back on. The
+ * remedy offered is a different browser rather than `--no-sandbox`, because this browser
+ * renders untrusted pages during research and the sandbox is what contains them.
+ */
+export function explainBrowserExit(browserPath, code, stderr) {
+  const detail = lastMeaningfulLine(stderr);
+  if (/No usable sandbox/i.test(stderr)) {
+    return (
+      `${browserPath} cannot start: no usable sandbox on this system. ` +
+      "This build ships no SUID sandbox helper and the distribution denies unprivileged user namespaces. " +
+      "Point T3RNEL_SESSION_BROWSER at a packaged browser that brings its own sandbox " +
+      "(for example /opt/google/chrome/chrome), which is safer than disabling it — " +
+      "the standalone browser renders untrusted pages."
+    );
+  }
+  if (/error while loading shared libraries|cannot open shared object/i.test(stderr)) {
+    return `${browserPath} is missing a shared library: ${detail}`;
+  }
+  if (/cannot open display|Missing X server/i.test(stderr)) {
+    return (
+      `${browserPath} could not open a display. Start one with scripts/virtual-display.sh, ` +
+      "or set T3RNEL_SESSION_DISPLAY to a running X display."
+    );
+  }
+  return (
+    `Standalone browser exited before exposing a CDP port (code: ${code})` +
+    (detail ? `: ${detail}` : "")
+  );
+}
+
+/**
+ * The X display to run headful on, when one is configured.
+ *
+ * Absent, the browser follows `headless`. Present, it takes precedence: a caller that has
+ * gone to the trouble of providing a display wants a real browser on it.
+ */
+export function defaultDisplay(env = process.env) {
+  const value = (env.T3RNEL_SESSION_DISPLAY ?? "").trim();
+  return value === "" ? null : value;
+}
+
 export function defaultProfileDir(env = process.env) {
   return env.T3RNEL_SESSION_PROFILE ?? join(homedir(), ".t3rnel", "session-bridge", "browser-profile");
 }
@@ -151,10 +204,16 @@ const READ_PAGE_JS = `(() => {
 })()`;
 
 export class StandaloneBrowser {
-  constructor({ browserPath = defaultBrowserPath(), profileDir = defaultProfileDir(), headless = false } = {}) {
+  /**
+   * @param {object} [options]
+   * @param {string} [options.display] An X display such as ":99". When set the browser
+   *   runs *headful* on that display rather than headless — see the note on `launch`.
+   */
+  constructor({ browserPath = defaultBrowserPath(), profileDir = defaultProfileDir(), headless = false, display = defaultDisplay() } = {}) {
     this.browserPath = browserPath;
     this.profileDir = profileDir;
     this.headless = headless;
+    this.display = display;
     this.process = null;
     this.port = null;
     this.sessions = new Map(); // targetId -> { ws, nextId, pending, loadListeners }
@@ -187,10 +246,38 @@ export class StandaloneBrowser {
       "--no-default-browser-check",
       "--disable-session-crashed-bubble",
     ];
-    if (this.headless) args.push("--headless=new");
+    /**
+     * A virtual display beats headless wherever a session is involved.
+     *
+     * Headless is a different browser to anti-bot systems, and it is the shape they look
+     * for — the sites worth researching are exactly the ones that block it. Running the
+     * ordinary browser against an X display with no monitor attached is not a
+     * work-alike: it *is* the normal browser, so it is not detected as headless, and it
+     * keeps the extension, the profile and the sessions that come with them.
+     *
+     * `--load-extension` is not an alternative here. Chrome removed it (measured against
+     * Chrome 152: the flag is accepted and the extension is not loaded, and
+     * `--disable-features=DisableLoadExtensionCommandLineSwitch` no longer restores it),
+     * so an extension reaches this browser through enterprise policy or not at all.
+     */
+    if (this.display) {
+      // Headful on the given display. Headless would defeat the point.
+    } else if (this.headless) {
+      args.push("--headless=new");
+    }
     args.push("about:blank");
-    this.process = spawn(this.browserPath, args, { stdio: ["ignore", "ignore", "pipe"] });
-    this.process.stderr.on("data", () => {});
+    const env = this.display ? { ...process.env, DISPLAY: this.display } : process.env;
+    this.process = spawn(this.browserPath, args, { stdio: ["ignore", "ignore", "pipe"], env });
+    /*
+     * Chrome's stderr is the only place it says why it would not start, and the reasons
+     * are things a caller can act on: a missing sandbox, an absent shared library, a
+     * display it cannot open. Discarding it turns every one of those into the same
+     * uninformative "exited before exposing a CDP port". Keep a bounded tail.
+     */
+    let stderrTail = "";
+    this.process.stderr.on("data", (chunk) => {
+      stderrTail = (stderrTail + chunk).slice(-4000);
+    });
     let earlyExit = null;
     this.process.on("error", (error) => {
       earlyExit = new Error(`Cannot start standalone browser: ${error.message}`);
@@ -200,7 +287,7 @@ export class StandaloneBrowser {
       this.process = null;
       for (const session of this.sessions.values()) session.ws.close();
       this.sessions.clear();
-      earlyExit = new Error(`Standalone browser exited before exposing a CDP port (code: ${code})`);
+      earlyExit = new Error(explainBrowserExit(this.browserPath, code, stderrTail));
     });
     const started = Date.now();
     while (Date.now() - started < 15000) {
@@ -214,7 +301,10 @@ export class StandaloneBrowser {
       }
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
-    throw new Error(`Standalone browser did not expose a CDP port within 15s (binary: ${this.browserPath})`);
+    throw new Error(
+      `Standalone browser did not expose a CDP port within 15s (binary: ${this.browserPath})` +
+        (stderrTail.trim() ? `\n${lastMeaningfulLine(stderrTail)}` : "")
+    );
   }
 
   async probe(port) {

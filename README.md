@@ -1,5 +1,7 @@
 # MCP Session Bridge
 
+[![Listed on mcpservers.org](https://mcpservers.org/badge.svg)](https://mcpservers.org/servers/t3ratech/mcp-session-bridge)
+
 A free MCP (Model Context Protocol) server that exposes **authenticated browser-session automation**: `session_*` tools that run in the user's own Chrome profile and real logged-in session, which cloud browser APIs cannot do. A free **standalone** mode is also available; it launches a dedicated automation browser so the same `session_*` tools work without the extension or a license.
 
 ## What it does
@@ -43,16 +45,16 @@ API, so both are partly supported; the extension's manifest generator states whi
 capabilities are absent on each. Standalone mode has no browser requirement at all — it
 launches its own CDP browser.
 
-The extension exposes 98 browser tools, all of which are reachable over this bridge
+The extension exposes 99 browser tools, all of which are reachable over this bridge
 subject to the extension's own Pro gating and its approval gate.
 
 ## Supported clients
 
-- Claude Code / Claude Desktop
+- Claude Code / Claude Cowork
 - Cursor
 - VS Code
-- Windsurf
-- Antigravity
+- Windsurf / Devin Desktop
+- Google Antigravity
 - IntelliJ
 - Codex
 - Grok Build
@@ -74,3 +76,16 @@ subject to the extension's own Pro gating and its approval gate.
 The bridge works best with the T3rnel Browser extension, which lets your AI drive the browser you are already signed into:
 
 <https://t3ratech.github.io/t3rnel-browser-plugin/>
+
+## Licence
+
+Source-available, not open source. See [LICENSE](LICENSE) for the terms.
+
+In short: the published npm package is free to use for any purpose, commercial or
+otherwise; you may read and locally modify this source; you may not redistribute it or
+publish a derivative without written permission.
+
+Directory listings that expect an SPDX identifier will report "no licence" for this
+repository. That is expected — GitHub detects the file and classifies it as `other` /
+`NOASSERTION`, because the terms are bespoke rather than one of the recognised
+open-source licences. The licence exists; it simply is not an OSI one.

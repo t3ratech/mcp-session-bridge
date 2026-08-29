@@ -9,6 +9,25 @@ import net from "node:net";
 import { createHash, randomBytes } from "node:crypto";
 
 const WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+
+/**
+ * One header's value from a raw HTTP head, matched case-insensitively.
+ *
+ * Returns null when the header is absent, which callers must distinguish from an empty
+ * value: a missing Sec-WebSocket-Accept and an empty one are both failures, but only the
+ * former means the server ignored the upgrade.
+ */
+export function headerValue(head, name) {
+  const wanted = name.toLowerCase();
+  for (const line of String(head).split("\r\n").slice(1)) {
+    const colon = line.indexOf(":");
+    if (colon === -1) continue;
+    if (line.slice(0, colon).trim().toLowerCase() === wanted) {
+      return line.slice(colon + 1).trim();
+    }
+  }
+  return null;
+}
 const MAX_MESSAGE_BYTES = 64 * 1024 * 1024;
 
 export function connectWebSocket(url, { timeoutMs = 10000, onMessage = () => {}, onClose = () => {} } = {}) {
@@ -134,9 +153,21 @@ export function connectWebSocket(url, { timeoutMs = 10000, onMessage = () => {},
         buffer = buffer.subarray(end + 4);
         const status = /^HTTP\/1\.1 101/.test(head);
         const accept = createHash("sha1").update(key + WS_GUID).digest("base64");
-        const acceptOk = new RegExp(`Sec-WebSocket-Accept: ${accept}`, "i").test(head);
+        /*
+         * Compare the accept value literally.
+         *
+         * It used to be interpolated into a RegExp, which is wrong for base64: `+` and
+         * `/` are regex metacharacters, so a digest containing either compiled to a
+         * pattern that did not match the very header it was built from. About 58% of
+         * digests contain one, which made the handshake fail at random on a correct
+         * server — and the reported reason was the 101 line, i.e. success.
+         */
+        const acceptOk = headerValue(head, "sec-websocket-accept") === accept;
         if (!status || !acceptOk) {
-          fail(new Error(`WebSocket handshake refused: ${head.split("\r\n")[0]}`));
+          const reason = status
+            ? "server did not echo the expected Sec-WebSocket-Accept value"
+            : head.split("\r\n")[0];
+          fail(new Error(`WebSocket handshake refused: ${reason}`));
           return;
         }
         handshaken = true;

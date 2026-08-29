@@ -96,7 +96,7 @@ how the site used to look.
 ## What the extension adds
 
 The bridge on its own serves 21 tools against a standalone browser. With the free
-T3rnel Browser extension connected, the same server serves 99 — the extra ones run
+T3rnel Browser extension connected, the same server serves 100 — the extra ones run
 inside the user's real tabs:
 
 - **CSS extraction** — copy an element's *computed* styles out as a component

@@ -6,6 +6,23 @@ All notable changes to the bridge. Newest first.
 
 ### Fixed
 
+- **The WebSocket handshake failed at random against a perfectly correct server.** The
+  `Sec-WebSocket-Accept` value the server echoes was interpolated into a `RegExp` and
+  matched against the response head. That value is base64, and base64 uses `+` and `/`,
+  both regex metacharacters — so any digest containing one compiled to a pattern that did
+  not match the very header it was built from. About 58% of random keys produce such a
+  digest, so most connections were refused, and the error blamed the
+  `HTTP/1.1 101` status line, which is the success case. The value is now compared
+  literally. Found while driving standalone mode against a browser on a virtual display.
+- **A browser that would not start reported nothing useful.** Its stderr was discarded, so
+  every cause — a missing sandbox, an absent shared library, no display — surfaced as the
+  same "exited before exposing a CDP port". The bridge now keeps the tail of stderr and
+  names the cause, with the remedy where there is one. The sandbox case is called out
+  specifically: Chrome for Testing ships no SUID sandbox helper, and current Ubuntu denies
+  the unprivileged user namespaces it would otherwise fall back on, so it cannot start at
+  all on an ordinary desktop. The advice is to point `T3RNEL_SESSION_BROWSER` at a
+  packaged browser rather than to pass `--no-sandbox`, because this browser renders
+  untrusted pages.
 - **`session_snapshot` advertised refs that no tool accepted.** Every element it returns
   carries a `ref`, and the description promises them, but the selector-taking tools
   rejected anything but `selector` — so an agent following the pattern every other browser
@@ -17,6 +34,26 @@ All notable changes to the bridge. Newest first.
 
 ### Added
 
+- **A virtual display, for research that needs to look like a real browser.**
+  `T3RNEL_SESSION_DISPLAY` (or `scripts/virtual-display.sh`, which brings up Xvfb and
+  tears it down again) runs the browser headful against an X server with no monitor
+  attached.
+
+  This is not a smaller headless. Headless Chrome identifies itself as `HeadlessChrome` in
+  the user agent — measured here against Chrome 152, beside the same browser on a virtual
+  display reporting plain `Chrome/152` — and it is exactly the shape anti-bot systems
+  watch for, so the sites most worth researching are the ones most likely to refuse it. A
+  browser on a virtual display is the ordinary browser, with the ordinary profile,
+  extension and signed-in sessions. The cost is one Xvfb process.
+
+  A display takes precedence over `headless` when both are set: a caller who has gone to
+  the trouble of running an X server does not want the flag that defeats it.
+
+  For completeness on the alternative: loading the extension into a throwaway browser via
+  `--load-extension` is no longer possible. On Chrome 152 the flag is accepted and the
+  extension is not loaded, and `--disable-features=DisableLoadExtensionCommandLineSwitch`
+  no longer restores it. An extension reaches such a browser through enterprise policy or
+  not at all.
 - **An MCPB bundle and a Smithery stdio release.** `scripts/build-mcpb.mjs` builds it and
   `scripts/publish-smithery.mjs` publishes it; every field is derived from the source it
   describes rather than typed twice. Smithery's URL-publishing path cannot take this
