@@ -51,6 +51,38 @@ describe("documented defaults match the code that applies them", () => {
     assert.deepEqual(mismatches, [], mismatches.join("; "));
   });
 
+  test("the schema's machine-readable default is the one the recorder applies", () => {
+    // The prose default and the JSON Schema `default` are two claims about the same
+    // number, read by different consumers: a person reads one, a client generating a form
+    // or filling arguments reads the other. Both are pinned, so they cannot drift apart
+    // from each other either.
+    const mismatches = [];
+    for (const tool of TOOL_DEFINITIONS) {
+      for (const [name, property] of Object.entries(tool.inputSchema.properties ?? {})) {
+        if (property.default === undefined || !applied.has(name)) continue;
+        if (property.default !== applied.get(name)) {
+          mismatches.push(
+            `${tool.name}.${name} declares default ${property.default} but the recorder applies ${applied.get(name)}`,
+          );
+        }
+      }
+    }
+    assert.deepEqual(mismatches, [], mismatches.join("; "));
+
+    // And the two claims must agree with each other, which is what actually rots.
+    const disagreements = [];
+    for (const tool of TOOL_DEFINITIONS) {
+      for (const [name, property] of Object.entries(tool.inputSchema.properties ?? {})) {
+        const stated = property.description?.match(/\(default ([^)]+)\)/);
+        if (!stated || property.default === undefined) continue;
+        if (String(property.default) !== stated[1]) {
+          disagreements.push(`${tool.name}.${name} says "${stated[1]}" in prose but ${property.default} in the schema`);
+        }
+      }
+    }
+    assert.deepEqual(disagreements, [], disagreements.join("; "));
+  });
+
   test("the parameters whose defaults callers depend on actually state one", () => {
     // A silent default is the same defect wearing a different hat: the caller still cannot
     // predict the page size without reading another repository's source.

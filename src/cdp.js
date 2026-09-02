@@ -138,14 +138,25 @@ const SNAPSHOT_JS = `(() => {
     if (rect.width === 0 || rect.height === 0) continue;
     const ref = "e" + (++n);
     el.setAttribute("data-t3rnel-ref", ref);
-    elements.push({ ref, tag: el.tagName.toLowerCase(), text: (el.innerText || el.value || el.getAttribute("aria-label") || "").slice(0, 120) });
+    elements.push({ ref: "@" + ref, tag: el.tagName.toLowerCase(), text: (el.innerText || el.value || el.getAttribute("aria-label") || "").slice(0, 120) });
     if (n >= 200) break;
   }
   return { url: location.href, title: document.title, elements };
 })()`;
 
+/**
+ * A ref is `@eN` on the wire and `eN` in the attribute.
+ *
+ * The extension emits and matches `@eN`; standalone emitted a bare `eN` and then
+ * matched whatever it was handed literally. So an agent that had read the docs — which
+ * say `@e12` — or that had ever run against the extension, built
+ * `[data-t3rnel-ref='@e12']`, matched nothing, and got "Element not found" for a ref
+ * the snapshot had just given it. Both forms are accepted here so neither habit breaks.
+ */
+const refAttr = (ref) => String(ref).replace(/^@/, "");
+
 const FIND_ELEMENT_JS = (selector, ref) => `(() => {
-  const el = ${ref != null ? `document.querySelector("[data-t3rnel-ref='${ref}']")` : `document.querySelector(${JSON.stringify(selector ?? "")})`};
+  const el = ${ref != null ? `document.querySelector("[data-t3rnel-ref='${refAttr(ref)}']")` : `document.querySelector(${JSON.stringify(selector ?? "")})`};
   if (!el) throw new Error("Element not found: ${ref ?? selector}");
   el.scrollIntoView({ block: "center", inline: "center" });
   const rect = el.getBoundingClientRect();
@@ -153,7 +164,7 @@ const FIND_ELEMENT_JS = (selector, ref) => `(() => {
 })()`;
 
 const FILL_JS = (selector, ref, value) => `(() => {
-  const el = ${ref != null ? `document.querySelector("[data-t3rnel-ref='${ref}']")` : `document.querySelector(${JSON.stringify(selector ?? "")})`};
+  const el = ${ref != null ? `document.querySelector("[data-t3rnel-ref='${refAttr(ref)}']")` : `document.querySelector(${JSON.stringify(selector ?? "")})`};
   if (!el) throw new Error("Element not found: ${ref ?? selector}");
   el.focus();
   const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
@@ -174,7 +185,7 @@ const FILL_JS = (selector, ref, value) => `(() => {
  * the page makes visible.
  */
 const SELECT_JS = (selector, ref, { value, text, index }) => `(() => {
-  const el = ${ref != null ? `document.querySelector("[data-t3rnel-ref='${ref}']")` : `document.querySelector(${JSON.stringify(selector ?? "")})`};
+  const el = ${ref != null ? `document.querySelector("[data-t3rnel-ref='${refAttr(ref)}']")` : `document.querySelector(${JSON.stringify(selector ?? "")})`};
   if (!el) throw new Error("Element not found: ${ref ?? selector}");
   if (el.tagName !== "SELECT") throw new Error("target is not a <select>: ${ref ?? selector}");
   const options = Array.from(el.options);
@@ -493,7 +504,7 @@ export async function executeStandaloneTool(browser, name, args = {}) {
     case "session_type": {
       const targetId = browser.targetFor(args.tabId);
       if (args.selector || args.ref) {
-        await browser.evalIn(targetId, `document.querySelector(${JSON.stringify(args.selector ?? `[data-t3rnel-ref='${args.ref}']`)})?.focus()`);
+        await browser.evalIn(targetId, `document.querySelector(${JSON.stringify(args.selector ?? `[data-t3rnel-ref='${refAttr(args.ref)}']`)})?.focus()`);
       }
       await browser.cdp(targetId, "Input.insertText", { text: args.text ?? "" });
       return text({ typed: (args.text ?? "").length });

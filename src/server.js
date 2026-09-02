@@ -29,7 +29,7 @@
 import { createInterface } from "node:readline";
 import net from "node:net";
 import { createFrameDecoder, encodeFrame } from "./framing.js";
-import { SESSION_TOOLS, SUPPORTED_MCP_CLIENTS, findTool, validateArguments } from "./tools.js";
+import { SESSION_TOOLS, SUPPORTED_MCP_CLIENTS, findTool, toWireTool, validateArguments } from "./tools.js";
 import { resolveSocketPath } from "./relay.js";
 import { defaultHostPath, installHosts, uninstallHosts, printInstallSummary } from "./install.js";
 import { StandaloneBrowser, executeStandaloneTool } from "./cdp.js";
@@ -297,9 +297,9 @@ export function startMcpServer({
       await waitForRelay(250);
       if (relay.isConnected()) tools = await getExtensionSessionTools();
     }
-    if (!tools) return SESSION_TOOLS;
+    if (!tools) return SESSION_TOOLS.map(toWireTool);
     const names = new Set(tools.map((t) => t.name));
-    return [...tools, ...bridgeOnly.filter((t) => !names.has(t.name))];
+    return [...tools, ...bridgeOnly.filter((t) => !names.has(t.name))].map(toWireTool);
   }
 
   async function resolveTool(name) {
