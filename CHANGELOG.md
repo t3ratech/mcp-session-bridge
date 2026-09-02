@@ -26,6 +26,27 @@ All notable changes to the bridge. Newest first.
   closes the active tab, which is called out in the description because the active tab is
   usually the one the user is looking at.
 
+### Fixed
+
+- **`session_evaluate` had never worked in standalone mode.** It read `args.expression`
+  while its schema declares `code`, and argument validation rejects any property the schema
+  does not list — so no caller could ever reach the value. Every standalone evaluation ran
+  the literal string `"undefined"` and returned it, which looks enough like a real answer
+  that nothing reported a problem.
+- **`session_wait` ignored the timeout it was given.** Same mismatch: it read
+  `args.timeout` against a schema declaring `timeoutMs`. A caller asking for thirty seconds
+  silently got ten, then an error naming a timeout it had never chosen.
+- **The standalone tool count was overstated by eight.** The MCPB manifest, the npm
+  description and the agent skill each derived "22 tools standalone" from the size of the
+  whole surface, but `session_close_tab`, the two vault tools and the five recording tools
+  refuse without the extension. The real figure is 14. Tools now carry a
+  `requiresExtension` flag, every published count derives from it, and a test checks the
+  flag against the standalone implementation rather than trusting it.
+- **`session_record_events` advertised the wrong page size.** Its `limit` was documented as
+  defaulting to 500 while the recorder applies 100, so a caller who omitted it received a
+  short page with no indication the recording was longer. Documented defaults are now
+  pinned to the code that applies them.
+
 ## 1.1.1 — 2026-08-28
 
 ### Fixed
