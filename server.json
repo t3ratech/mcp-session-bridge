@@ -6,14 +6,14 @@
     "url": "https://github.com/t3ratech/mcp-session-bridge",
     "source": "github"
   },
-  "version": "1.1.1",
+  "version": "1.2.0",
   "websiteUrl": "https://t3ratech.github.io/t3rnel-browser-plugin/",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "@t3ratech/mcp-session-bridge",
-      "version": "1.1.1",
+      "version": "1.2.0",
       "transport": {
         "type": "stdio"
       },

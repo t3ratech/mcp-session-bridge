@@ -20,13 +20,30 @@ export const TOOL_DEFINITIONS = [
   },
   {
     name: "session_health",
-    description: "Check extension health and which browser APIs are available in the connected session.",
+    description: "Report whether the extension is connected and which browser APIs the current session exposes. Use this first when another tool fails unexpectedly: it distinguishes 'the extension is not running' from 'this browser does not implement that API'.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
   {
     name: "session_list_tabs",
-    description: "List all open browser tabs with their ids, titles and URLs.",
+    description: "List every open tab with its id, title and URL. Tab ids from here are what every other tool's optional tabId argument accepts; without one, tools act on the active tab.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
+  },
+  {
+    /**
+     * Named `session_close_tab` so the automatic prefix swap reaches the extension's
+     * `browser_close_tab`. The tool surface is otherwise complete for the browsing
+     * lifecycle: open, navigate, read, interact, record — and, until now, never close,
+     * which left an agent opening tabs it had no way to tidy up.
+     */
+    name: "session_close_tab",
+    description: "Close a tab in the user's browser. Without a tabId this closes the active tab, so pass one explicitly when tidying up a tab the agent opened rather than the one the user is looking at.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tabId: { type: "integer", description: "Tab to close, from session_list_tabs; closes the active tab when omitted" },
+      },
+      additionalProperties: false,
+    },
   },
   {
     name: "session_navigate",
@@ -47,7 +64,7 @@ export const TOOL_DEFINITIONS = [
     description: "Capture a semantic snapshot of a page: URL, title, active element and interactive elements with refs.",
     inputSchema: {
       type: "object",
-      properties: { tabId: { type: "integer" } },
+      properties: { tabId: { type: "integer", description: "Tab to snapshot; uses the active tab when omitted" } },
       additionalProperties: false,
     },
   },
@@ -56,20 +73,20 @@ export const TOOL_DEFINITIONS = [
     description: "Read the full page content of an authenticated page: text, inputs and interactive elements.",
     inputSchema: {
       type: "object",
-      properties: { tabId: { type: "integer" } },
+      properties: { tabId: { type: "integer", description: "Tab to read; uses the active tab when omitted" } },
       additionalProperties: false,
     },
   },
   {
     name: "session_click",
-    description: "Click an element by CSS selector or @eN ref from a snapshot.",
+    description: "Click an element in the user's authenticated session, by CSS selector or by an @eN ref taken from session_snapshot. Scrolls the element into view first and fails rather than clicking something else if the selector matches nothing.",
     inputSchema: {
       type: "object",
       required: ["selector"],
       properties: {
-        selector: { type: "string" },
+        selector: { type: "string", description: "CSS selector for the element to click" },
         ref: { type: "string", description: "A ref from session_snapshot, such as @e12, used instead of selector" },
-        tabId: { type: "integer" },
+        tabId: { type: "integer", description: "Tab to act on; uses the active tab when omitted" },
       },
       additionalProperties: false,
     },
@@ -81,25 +98,25 @@ export const TOOL_DEFINITIONS = [
       type: "object",
       required: ["selector", "value"],
       properties: {
-        selector: { type: "string" },
+        selector: { type: "string", description: "CSS selector for the field to fill" },
         ref: { type: "string", description: "A ref from session_snapshot, such as @e12, used instead of selector" },
-        value: { type: "string" },
-        tabId: { type: "integer" },
+        value: { type: "string", description: "Text to place in the field, replacing whatever is there" },
+        tabId: { type: "integer", description: "Tab to act on; uses the active tab when omitted" },
       },
       additionalProperties: false,
     },
   },
   {
     name: "session_type",
-    description: "Type text character by character into a field, simulating real keyboard input.",
+    description: "Type text one character at a time, firing the key events a real keyboard would. Use this instead of session_fill when a field only reacts to keystrokes \u2014 search boxes with live suggestions, and inputs with per-character validation.",
     inputSchema: {
       type: "object",
       required: ["selector", "text"],
       properties: {
-        selector: { type: "string" },
+        selector: { type: "string", description: "CSS selector for the field to type into" },
         ref: { type: "string", description: "A ref from session_snapshot, such as @e12, used instead of selector" },
-        text: { type: "string" },
-        tabId: { type: "integer" },
+        text: { type: "string", description: "Text to type, one character at a time" },
+        tabId: { type: "integer", description: "Tab to act on; uses the active tab when omitted" },
       },
       additionalProperties: false,
     },
@@ -116,7 +133,7 @@ export const TOOL_DEFINITIONS = [
         value: { type: "string", description: "Option value to choose" },
         text: { type: "string", description: "Visible option text to choose; matched exactly first, then by substring" },
         index: { type: "integer", description: "Option index to choose" },
-        tabId: { type: "integer" },
+        tabId: { type: "integer", description: "Tab to act on; uses the active tab when omitted" },
       },
       additionalProperties: false,
     },
@@ -128,10 +145,10 @@ export const TOOL_DEFINITIONS = [
       type: "object",
       required: ["key"],
       properties: {
-        key: { type: "string" },
-        selector: { type: "string" },
+        key: { type: "string", description: "Key name, such as Enter, Tab, Escape, ArrowDown" },
+        selector: { type: "string", description: "CSS selector for the element to press the key on; the focused element when omitted" },
         ref: { type: "string", description: "A ref from session_snapshot, such as @e12, used instead of selector" },
-        tabId: { type: "integer" },
+        tabId: { type: "integer", description: "Tab to act on; uses the active tab when omitted" },
       },
       additionalProperties: false,
     },
@@ -143,21 +160,21 @@ export const TOOL_DEFINITIONS = [
       type: "object",
       required: ["code"],
       properties: {
-        code: { type: "string" },
-        tabId: { type: "integer" },
+        code: { type: "string", description: "JavaScript to run in the page's own context. Its completion value is returned, so end with the expression you want back" },
+        tabId: { type: "integer", description: "Tab to run in; uses the active tab when omitted" },
       },
       additionalProperties: false,
     },
   },
   {
     name: "session_screenshot",
-    description: "Take a screenshot of the visible tab area. Returns base64 PNG or JPEG.",
+    description: "Capture the visible area of a tab and return it as a base64 PNG or JPEG. Captures only what is on screen; it does not scroll or stitch a full page.",
     inputSchema: {
       type: "object",
       properties: {
-        format: { type: "string", enum: ["png", "jpeg"] },
+        format: { type: "string", enum: ["png", "jpeg"], description: "png (default, lossless) or jpeg (smaller, and the only format quality applies to)" },
         quality: { type: "integer", description: "JPEG quality 0-100" },
-        windowId: { type: "integer" },
+        windowId: { type: "integer", description: "Window to capture from; uses the current window when omitted" },
         // Always honoured by the extension, never advertised — so the boundary rejected
         // it and a caller working in one specific tab could only capture the active one.
         tabId: { type: "integer", description: "Tab to capture (defaults to the active tab)" },
@@ -167,30 +184,30 @@ export const TOOL_DEFINITIONS = [
   },
   {
     name: "session_wait",
-    description: "Wait for a condition: page load, URL match, or selector presence.",
+    description: "Block until a condition holds: the page finishes loading, the URL contains a string, or a selector appears. Returns as soon as the condition is met and fails at the timeout rather than hanging the client.",
     inputSchema: {
       type: "object",
       required: ["condition"],
       properties: {
-        condition: { type: "string", enum: ["load", "url", "selector"] },
+        condition: { type: "string", enum: ["load", "url", "selector"], description: "What to wait for: load, url, or selector" },
         value: { type: "string", description: "URL substring or selector to wait for" },
         timeoutMs: { type: "integer", description: "Maximum wait in milliseconds" },
-        tabId: { type: "integer" },
+        tabId: { type: "integer", description: "Tab to wait on; uses the active tab when omitted" },
       },
       additionalProperties: false,
     },
   },
   {
     name: "session_login",
-    description: "Decrypt and retrieve stored credentials for a domain. Requires the extension and Pro.",
+    description: "Decrypt stored credentials for a domain and fill them into the page's sign-in form. Requires the extension and a Pro licence; the refusal comes from the extension, not from this bridge.",
     inputSchema: {
       type: "object",
       required: ["domain"],
       properties: {
         domain: { type: "string", description: "Domain the credentials are saved for, e.g. \"github.com\"" },
-        tabId: { type: "integer" },
+        tabId: { type: "integer", description: "Tab holding the sign-in form; uses the active tab when omitted" },
         submit: { type: "boolean", description: "Ignored; kept for compatibility" },
-        masterPassword: { type: "string" },
+        masterPassword: { type: "string", description: "Passphrase that unlocks the extension's vault. Never log or persist it" },
       },
       additionalProperties: false,
     },
@@ -202,10 +219,10 @@ export const TOOL_DEFINITIONS = [
       type: "object",
       required: ["domain", "username", "password"],
       properties: {
-        domain: { type: "string" },
-        username: { type: "string" },
-        password: { type: "string" },
-        masterPassword: { type: "string" },
+        domain: { type: "string", description: "Domain the credentials belong to, such as \\\"github.com\\\"" },
+        username: { type: "string", description: "Username or email to store" },
+        password: { type: "string", description: "Password to encrypt and store. It is never returned by any tool" },
+        masterPassword: { type: "string", description: "Passphrase that unlocks the extension's vault. Never log or persist it" },
       },
       additionalProperties: false,
     },
@@ -225,7 +242,7 @@ export const TOOL_DEFINITIONS = [
   },
   {
     name: "session_record_stop",
-    description: "Stop a recording session and return the captured event count and duration.",
+    description: "Stop a recording session and return how many events it captured and how long it ran. The events themselves are read separately with session_record_events.",
     inputSchema: {
       type: "object",
       properties: {
@@ -236,31 +253,31 @@ export const TOOL_DEFINITIONS = [
   },
   {
     name: "session_record_list",
-    description: "List all recording sessions and their status.",
+    description: "List every recording session with its id, state and event count, so a caller can find the id it needs for session_record_events or session_record_replay.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
   {
     name: "session_record_events",
-    description: "Fetch the recorded events for a session.",
+    description: "Fetch the captured events of a recording session \u2014 clicks, scrolls, keystrokes, form fills and navigations, in the order they happened. Long recordings are paged with limit and offset rather than returned whole, because a full session can be tens of thousands of events.",
     inputSchema: {
       type: "object",
       required: ["sessionId"],
       properties: {
-        sessionId: { type: "string" },
-        limit: { type: "integer" },
-        offset: { type: "integer" },
+        sessionId: { type: "string", description: "Recording session to read, from session_record_list" },
+        limit: { type: "integer", description: "Maximum events to return in this page (default 500)" },
+        offset: { type: "integer", description: "Number of events to skip, for paging through a long recording" },
       },
       additionalProperties: false,
     },
   },
   {
     name: "session_record_replay",
-    description: "Replay a stopped recording session in the original tab.",
+    description: "Replay a stopped recording in its original tab, reproducing the recorded interactions in order. The tab must still be open; replay acts on the live page and its effects are real.",
     inputSchema: {
       type: "object",
       required: ["sessionId"],
       properties: {
-        sessionId: { type: "string" },
+        sessionId: { type: "string", description: "Stopped recording session to replay, from session_record_list" },
         speed: { type: "number", description: "Replay speed multiplier (default 1)" },
       },
       additionalProperties: false,

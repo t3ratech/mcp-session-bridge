@@ -2,6 +2,30 @@
 
 All notable changes to the bridge. Newest first.
 
+## 1.2.0 — 2026-09-02
+
+### Changed
+
+- **Relicensed under Apache-2.0.** The bridge has always been free to use; it is now free
+  to fork, redistribute and build on. The previous licence was source-available custom
+  text, which no licence detector recognises — Glama scored the server `F` on licensing
+  with "MCP servers without a LICENSE cannot be installed", because a `LicenseRef-`
+  identifier reads to tooling as no licence at all. `NOTICE` records what the grant does
+  and does not cover: the T3rnel Browser extension the bridge connects to is a separate
+  proprietary product, and Apache-2.0 section 6 grants no trademark rights.
+- **Every tool description rewritten, and every parameter documented.** Each description
+  now says when to reach for that tool rather than restating its name, and no parameter is
+  left for the model to guess at. `session_record_events` was the weakest — "Fetch the
+  recorded events for a session", with three undocumented arguments — and now explains why
+  long recordings are paged rather than returned whole.
+
+### Added
+
+- **`session_close_tab`.** The surface covered the whole browsing lifecycle except
+  closing, so an agent could open tabs it had no way to tidy up. Without a `tabId` it
+  closes the active tab, which is called out in the description because the active tab is
+  usually the one the user is looking at.
+
 ## 1.1.1 — 2026-08-28
 
 ### Fixed
