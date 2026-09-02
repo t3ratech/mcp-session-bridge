@@ -46,6 +46,13 @@ All notable changes to the bridge. Newest first.
   defaulting to 500 while the recorder applies 100, so a caller who omitted it received a
   short page with no indication the recording was longer. Documented defaults are now
   pinned to the code that applies them.
+- **`session_close_tab` promised an active-tab default it never had.** It declared `tabId`
+  optional and said it would close the active tab when omitted, but the extension's handler
+  requires the id and throws without it, so the documented call failed with an error from
+  inside the extension about an argument the schema said was optional. `tabId` is now
+  required, which is also the safer contract for the one irreversible tool on the surface.
+  A test now reads the extension's own handlers and fails when a bridge schema and the
+  handler behind it disagree about whether a tab must be named.
 
 ## 1.1.1 — 2026-08-28
 

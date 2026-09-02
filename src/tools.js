@@ -41,11 +41,16 @@ export const TOOL_DEFINITIONS = [
     name: "session_close_tab",
     requiresExtension: true,
     description:
-      "Close a tab. Without a tabId this closes the active tab — the one the user is looking at — so pass an id from session_list_tabs when tidying up a tab the agent opened. Requires the T3rnel Browser extension; the standalone browser refuses it by name.",
+      "Close a tab, named explicitly by its id from session_list_tabs. Returns {closed, tabId}. Unlike every other tool here, tabId is required and there is no active-tab default: closing a tab is not undoable, and the active tab is the one the user is looking at. Requires the T3rnel Browser extension; the standalone browser refuses it by name.",
     inputSchema: {
       type: "object",
+      // Required, because the extension's handler reads it with `readRequiredNumber` and
+      // throws when it is absent. Declaring it optional and promising an active-tab default
+      // meant a caller that omitted it got "missing required browser arg: tabId" back from
+      // deep inside the extension, for a default this tool never had.
+      required: ["tabId"],
       properties: {
-        tabId: { type: "integer", description: "Tab to close, from session_list_tabs; closes the active tab when omitted" },
+        tabId: { type: "integer", description: "Tab to close, from session_list_tabs" },
       },
       additionalProperties: false,
     },
