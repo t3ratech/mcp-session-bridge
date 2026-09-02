@@ -194,9 +194,18 @@ describe("MCP Session Bridge", () => {
   });
 
   it("does not require a license key on the server", async () => {
+    /**
+     * Its own profile, so a browser left running elsewhere cannot satisfy this.
+     *
+     * The standalone browser is one instance per profile directory, so a stray process
+     * on the shared default profile is simply attached to — and the deliberately broken
+     * `T3RNEL_SESSION_BROWSER` is never reached. The test then passes a real page back
+     * and asserts nothing, which is exactly what happened.
+     */
     const proc = spawnServer({
       T3RNEL_SESSION_MODE: "standalone",
       T3RNEL_SESSION_BROWSER: "/no-such-browser",
+      T3RNEL_SESSION_PROFILE: mkdtempSync(join(tmpdir(), "t3rnel-isolated-")),
     });
     proc.stderr.on("data", () => { });
 

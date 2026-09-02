@@ -507,7 +507,11 @@ export async function executeStandaloneTool(browser, name, args = {}) {
       return text({ pressed: args.key });
     }
     case "session_evaluate": {
-      const value = await browser.evalIn(browser.targetFor(args.tabId), args.expression ?? "undefined", true);
+      // `code`, matching the declared schema. This read `args.expression` — a name no
+      // caller could send, because `validateArguments` rejects unknown properties — so
+      // every standalone evaluation ran the literal string "undefined" and returned it.
+      // The tool looked like it worked and had never worked at all.
+      const value = await browser.evalIn(browser.targetFor(args.tabId), args.code, true);
       return text(value === undefined ? "undefined" : typeof value === "string" ? value : JSON.stringify(value, null, 2));
     }
     case "session_screenshot": {
@@ -520,7 +524,10 @@ export async function executeStandaloneTool(browser, name, args = {}) {
     }
     case "session_wait": {
       const targetId = browser.targetFor(args.tabId);
-      const timeoutMs = args.timeout ?? 10000;
+      // `timeoutMs`, matching the declared schema. Reading `args.timeout` meant a caller
+      // asking for thirty seconds silently got ten, then an error naming a timeout they
+      // never chose.
+      const timeoutMs = args.timeoutMs ?? 10000;
       const deadline = Date.now() + timeoutMs;
       if (args.condition === "load") {
         const session = await browser.session(targetId);
