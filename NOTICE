@@ -1,0 +1,22 @@
+T3rnel MCP Session Bridge
+Copyright 2026 T3raTech Solutions (Pvt) Ltd
+
+Licensed under the Apache License, Version 2.0. See LICENSE.
+
+What this licence covers
+------------------------
+
+This licence covers the MCP Session Bridge: the npm package
+@t3ratech/mcp-session-bridge and the source in this repository. The bridge has always
+been free to use, and it is now free to fork, redistribute and build on.
+
+It does not cover the T3rnel Browser extension the bridge connects to. That is a
+separate product, distributed through the browser extension stores under its own
+proprietary licence, and nothing here grants a licence to it.
+
+Trademarks
+----------
+
+"T3rnel", "T3raTech" and the T3 mark are trademarks of T3raTech Solutions (Pvt) Ltd.
+Section 6 of the Apache License grants no trademark rights. A fork may use this code;
+it may not present itself as T3rnel or as published by T3raTech.

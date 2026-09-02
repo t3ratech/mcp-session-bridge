@@ -3,7 +3,7 @@
   "maintainers": [
     "t3ratech"
   ],
-  "license": "LicenseRef-Proprietary",
+  "license": "Apache-2.0",
   "npm": "@t3ratech/mcp-session-bridge",
   "documentation": "https://github.com/t3ratech/mcp-session-bridge#readme",
   "website": "https://t3ratech.github.io/t3rnel-browser-plugin/"
