@@ -41,7 +41,7 @@ describe("the skill describes the server that actually exists", () => {
     assert.match(skill, new RegExp(`serves ${TOOL_DEFINITIONS.length} tools`));
 
     const registry = readFileSync(
-      join(root, "..", "..", "products", "browser-extension", "src", "browser-tools.ts"), "utf8",
+      join(root, "..", "..", "browser", "t3rnel-browser", "src", "browser-tools.ts"), "utf8",
     );
     const open = registry.indexOf("[", registry.indexOf("export const BROWSER_TOOL_NAMES"));
     const names = [...registry.slice(open, registry.indexOf("] as const", open)).matchAll(/"([a-z0-9_]+)"/g)];

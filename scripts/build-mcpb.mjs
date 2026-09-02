@@ -25,7 +25,7 @@ import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..");
-const repoRoot = resolve(root, "..", "..");
+const repoRoot = resolve(root, "..", "..", "..");
 const outDir = join(root, "build");
 
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
@@ -42,7 +42,7 @@ const { TOOL_DEFINITIONS } = await import(join(root, "src", "tools.js"));
  */
 function extensionToolCount() {
   const source = readFileSync(
-    join(repoRoot, "products", "browser-extension", "src", "browser-tools.ts"), "utf8"
+    join(repoRoot, "products", "browser", "t3rnel-browser", "src", "browser-tools.ts"), "utf8"
   );
   const start = source.indexOf("export const BROWSER_TOOL_NAMES");
   if (start === -1) throw new Error("build-mcpb: BROWSER_TOOL_NAMES not found in the extension registry");
@@ -209,7 +209,7 @@ function build({ check }) {
   };
   writeFileSync(join(staging, "server", "package.json"), `${JSON.stringify(runtimePkg, null, 2)}\n`);
 
-  const icon = join(repoRoot, "products", "browser-extension", "static", "icons", "icon128.png");
+  const icon = join(repoRoot, "products", "browser", "t3rnel-browser", "static", "icons", "icon128.png");
   if (!existsSync(icon)) throw new Error(`build-mcpb: no icon at ${icon}, and the manifest names one.`);
   cpSync(icon, join(staging, "icon.png"));
 
