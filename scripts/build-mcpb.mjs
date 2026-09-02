@@ -29,7 +29,7 @@ const repoRoot = resolve(root, "..", "..", "..");
 const outDir = join(root, "build");
 
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
-const { TOOL_DEFINITIONS } = await import(join(root, "src", "tools.js"));
+const { TOOL_DEFINITIONS, STANDALONE_TOOLS } = await import(join(root, "src", "tools.js"));
 
 /**
  * How many tools the extension adds, read from the extension's own registry.
@@ -77,7 +77,11 @@ function assertNoExternalDependencies() {
 }
 
 export function buildManifest() {
-  const standalone = TOOL_DEFINITIONS.length;
+  // Derived from the tools that actually run without the extension, not from the whole
+  // surface. Advertising `TOOL_DEFINITIONS.length` here claimed 22 standalone tools when
+  // 8 of them refuse without the extension, so a caller in standalone mode was promised
+  // recording and a credential vault and discovered the truth one error at a time.
+  const standalone = STANDALONE_TOOLS.length;
   const withExtension = extensionToolCount() + 1; // the extension's surface plus session_install
   return {
     manifest_version: "0.3",

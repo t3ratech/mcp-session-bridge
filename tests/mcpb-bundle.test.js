@@ -20,7 +20,7 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const { buildManifest } = await import(join(root, "scripts", "build-mcpb.mjs"));
-const { TOOL_DEFINITIONS } = await import(join(root, "src", "tools.js"));
+const { TOOL_DEFINITIONS, STANDALONE_TOOLS } = await import(join(root, "src", "tools.js"));
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 
 describe("the MCPB manifest describes the server that is actually shipped", () => {
@@ -47,9 +47,17 @@ describe("the MCPB manifest describes the server that is actually shipped", () =
   });
 
   test("states tool counts that match what the code actually serves", () => {
-    // Measured by running the bundle both ways: 20 alone, 99 with the extension relay.
-    const standalone = String(TOOL_DEFINITIONS.length);
+    // This pinned `TOOL_DEFINITIONS.length`, which the manifest was never required to
+    // advertise as its standalone figure: 8 of those tools refuse outright without the
+    // extension, so the claim read 22 when the truth was 14. The number a reader acts on
+    // is how many tools work with nothing installed, so that is what is pinned here.
+    const standalone = String(STANDALONE_TOOLS.length);
     assert.match(manifest.long_description, new RegExp(`serves ${standalone} tools`));
+    assert.notEqual(
+      STANDALONE_TOOLS.length,
+      TOOL_DEFINITIONS.length,
+      "the two counts are equal again, so this assertion no longer distinguishes them",
+    );
 
     const registry = readFileSync(
       join(root, "..", "..", "browser", "t3rnel-browser", "src", "browser-tools.ts"), "utf8",
@@ -58,6 +66,27 @@ describe("the MCPB manifest describes the server that is actually shipped", () =
     const names = [...registry.slice(open, registry.indexOf("] as const", open)).matchAll(/"([a-z0-9_]+)"/g)];
     assert.ok(names.length > 50, "the extension registry parsed to an implausible count");
     assert.match(manifest.long_description, new RegExp(`serves ${names.length + 1}\\b`));
+  });
+
+  test("the npm description states the same counts as the manifest", () => {
+    // This is the copy npm, Glama and every MCP directory render, and it carried the same
+    // inflated standalone figure the manifest did. It is a published claim, so it is pinned
+    // to the registry rather than left to be re-typed correctly next time.
+    const registry = readFileSync(
+      join(root, "..", "..", "browser", "t3rnel-browser", "src", "browser-tools.ts"), "utf8",
+    );
+    const open = registry.indexOf("[", registry.indexOf("export const BROWSER_TOOL_NAMES"));
+    const names = [...registry.slice(open, registry.indexOf("] as const", open)).matchAll(/"([a-z0-9_]+)"/g)];
+    assert.match(
+      pkg.description,
+      new RegExp(`\\b${STANDALONE_TOOLS.length} tools on its own\\b`),
+      `the npm description does not state ${STANDALONE_TOOLS.length} standalone tools`,
+    );
+    assert.match(
+      pkg.description,
+      new RegExp(`\\b${names.length + 1} with the extension\\b`),
+      `the npm description does not state ${names.length + 1} tools with the extension`,
+    );
   });
 
   test("names an entry point, a runtime and a command that agree with each other", () => {

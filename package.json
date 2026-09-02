@@ -2,7 +2,7 @@
   "name": "@t3ratech/mcp-session-bridge",
   "version": "1.2.0",
   "license": "Apache-2.0",
-  "description": "MCP server that drives the browser you are already signed into, through the free T3rnel Browser extension \u2014 or a standalone automation browser with no extension and no licence. 22 tools on its own, 103 with the extension, over stdio for any Model Context Protocol client.",
+  "description": "MCP server that drives the browser you are already signed into, through the free T3rnel Browser extension \u2014 or a standalone automation browser with no extension and no licence. 14 tools on its own, 103 with the extension, over stdio for any Model Context Protocol client.",
   "type": "module",
   "bin": {
     "mcp-session-bridge": "src/server.js",

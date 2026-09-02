@@ -79,4 +79,75 @@ describe("the standalone browser implements the declared tool surface", () => {
     assert.equal(validateArguments({ condition: "load", timeoutMs: 30000 }, tool.inputSchema), null);
     assert.match(String(validateArguments({ condition: "load", timeout: 30000 }, tool.inputSchema)), /Unknown argument: timeout/);
   });
+
+  /**
+   * `requiresExtension` is what the published tool counts are derived from, so a flag that
+   * disagrees with the implementation puts a false number on the listing rather than just
+   * being untidy. The manifest previously advertised 22 standalone tools because it counted
+   * the whole surface; 8 of those refuse without the extension.
+   *
+   * `session_login` is the deliberate exception: it has a standalone case whose entire body
+   * throws an explanation, because "log in by hand in the standalone profile" is a more
+   * useful answer than "unknown tool".
+   */
+  describe("the requiresExtension flag matches what standalone actually implements", () => {
+    /**
+     * Parsed from the case labels rather than reused from `cases` above, which only matches
+     * the brace form. `session_login` is written without braces, so it is invisible to that
+     * matcher — and it is precisely the tool this section has to classify correctly.
+     */
+    const switchBody = body.slice(body.indexOf("switch (name) {"));
+    const labels = [...switchBody.matchAll(/case "(session_\w+)":/g)];
+    const bodies = new Map(
+      labels.map((match, index) => {
+        const start = match.index + match[0].length;
+        const next = index + 1 < labels.length ? labels[index + 1].index : switchBody.indexOf("default:", start);
+        return [match[1], switchBody.slice(start, next === -1 ? undefined : next)];
+      }),
+    );
+    const implemented = new Set(bodies.keys());
+    const refuses = new Set(
+      [...bodies].filter(([, text]) => /^\s*\{?\s*throw new Error\(/.test(text)).map(([name]) => name),
+    );
+
+    test("the parse distinguishes a real implementation from a refusal", () => {
+      assert.ok(refuses.has("session_login"), "the refusal parse is broken, so every tool below reads as implemented");
+      assert.ok(implemented.has("session_snapshot") && !refuses.has("session_snapshot"), "a real case parsed as a refusal");
+    });
+
+    test("no tool claims to work standalone while the browser refuses it", () => {
+      const lying = TOOL_DEFINITIONS.filter(
+        (tool) =>
+          !tool.requiresExtension &&
+          tool.name !== "session_install" &&
+          (!implemented.has(tool.name) || refuses.has(tool.name)),
+      ).map((tool) => tool.name);
+      assert.deepEqual(
+        lying,
+        [],
+        `counted as standalone but unusable without the extension: ${lying.join(", ")}`,
+      );
+    });
+
+    test("no tool is marked extension-only while standalone implements it", () => {
+      const understated = TOOL_DEFINITIONS.filter(
+        (tool) => tool.requiresExtension && implemented.has(tool.name) && !refuses.has(tool.name),
+      ).map((tool) => tool.name);
+      assert.deepEqual(
+        understated,
+        [],
+        `marked extension-only but standalone runs them: ${understated.join(", ")}`,
+      );
+    });
+
+    test("every extension-only tool says so in its description, where a caller reads it", () => {
+      for (const tool of TOOL_DEFINITIONS.filter((t) => t.requiresExtension)) {
+        assert.match(
+          tool.description,
+          /requires the T3rnel Browser extension/i,
+          `${tool.name} refuses without the extension but its description never says so`,
+        );
+      }
+    });
+  });
 });

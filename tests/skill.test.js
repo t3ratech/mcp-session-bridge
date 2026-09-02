@@ -25,7 +25,7 @@ const skillNames = readdirSync(skillsDir).filter((name) =>
 const skillText = Object.fromEntries(
   skillNames.map((name) => [name, readFileSync(join(skillsDir, name, "SKILL.md"), "utf8")]));
 const skill = skillText["signed-in-browser"];
-const { TOOL_DEFINITIONS } = await import(join(root, "src", "tools.js"));
+const { TOOL_DEFINITIONS, STANDALONE_TOOLS, EXTENSION_ONLY_TOOLS } = await import(join(root, "src", "tools.js"));
 const known = new Set(TOOL_DEFINITIONS.map((t) => t.name));
 
 describe("the skill describes the server that actually exists", () => {
@@ -37,8 +37,10 @@ describe("the skill describes the server that actually exists", () => {
   });
 
   test("states the tool counts the code actually serves", () => {
-    // 20 standalone, 99 with the extension relay — both measured by running the bundle.
-    assert.match(skill, new RegExp(`serves ${TOOL_DEFINITIONS.length} tools`));
+    // The standalone figure is the tools that run with nothing installed, not the whole
+    // surface. Pinning `TOOL_DEFINITIONS.length` here told an agent it had recording and a
+    // credential vault in standalone mode; both refuse, and it found out one error at a time.
+    assert.match(skill, new RegExp(`serves ${STANDALONE_TOOLS.length} tools`));
 
     const registry = readFileSync(
       join(root, "..", "..", "browser", "t3rnel-browser", "src", "browser-tools.ts"), "utf8",
@@ -46,6 +48,26 @@ describe("the skill describes the server that actually exists", () => {
     const open = registry.indexOf("[", registry.indexOf("export const BROWSER_TOOL_NAMES"));
     const names = [...registry.slice(open, registry.indexOf("] as const", open)).matchAll(/"([a-z0-9_]+)"/g)];
     assert.match(skill, new RegExp(`serves ${names.length + 1}\\b`), "the with-extension count is stale");
+  });
+
+  test("tells the agent which tools refuse without the extension", () => {
+    // An agent planning a standalone run needs the names, not just a count. Without this
+    // the skill can state "14 tools" correctly and still leave the reader to discover the
+    // other eight by calling them and reading errors.
+    const section = skill.slice(skill.indexOf("refuse without the extension"));
+    assert.ok(section.length > 100, "the skill no longer explains which tools need the extension");
+    const missing = EXTENSION_ONLY_TOOLS.map((tool) => tool.name).filter((name) => !section.includes(name));
+    assert.deepEqual(
+      missing,
+      [],
+      `these tools refuse without the extension but the skill never names them: ${missing.join(", ")}`,
+    );
+    for (const tool of STANDALONE_TOOLS) {
+      assert.ok(
+        !new RegExp(`${tool.name}[^_]`).test(section.slice(0, section.indexOf("\n\n"))),
+        `${tool.name} works standalone but is listed among the tools that refuse`,
+      );
+    }
   });
 
   test("carries the frontmatter a skill host reads", () => {

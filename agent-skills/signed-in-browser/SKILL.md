@@ -95,9 +95,21 @@ how the site used to look.
 
 ## What the extension adds
 
-The bridge on its own serves 22 tools against a standalone browser. With the free
-T3rnel Browser extension connected, the same server serves 103 — the extra ones run
-inside the user's real tabs:
+The bridge on its own serves 14 tools against a standalone browser: `session_install`,
+`session_health`, `session_list_tabs`, `session_navigate`, `session_snapshot`,
+`session_read_page`, `session_click`, `session_fill`, `session_type`, `session_select`,
+`session_press`, `session_evaluate`, `session_screenshot` and `session_wait`. That is
+enough to browse, read and fill in almost anything.
+
+The other eight refuse without the extension, so don't plan a standalone run around them:
+`session_close_tab`, `session_login`, `session_store_login`, `session_record_start`,
+`session_record_stop`, `session_record_list`, `session_record_events` and
+`session_record_replay`. `session_login` in particular has no standalone equivalent — the
+credential vault lives in the extension, so sign in by hand once in the standalone profile
+instead and the session persists.
+
+With the free T3rnel Browser extension connected, the same server serves 103 — the extra
+ones run inside the user's real tabs:
 
 - **CSS extraction** — copy an element's *computed* styles out as a component
   (styled-components, Tailwind, CSS Modules, JSX and others), which static HTML cannot
