@@ -1,6 +1,7 @@
 ---
 name: signed-in-browser
 description: Drive the browser the user is already signed into, instead of a cold automation profile. Use when a task lives behind a login — a dashboard, an admin console, an internal tool, a ticket queue, a bank or billing page, webmail, a social account — or when a scripted login is failing on SSO, MFA, CAPTCHA or bot detection. Also use for reading a page's real rendered CSS, capturing a full page, inspecting React state, or recording and replaying a UI flow against a live session.
+identifier: t3rnel-signed-in-browser
 metadata: { "homepage": "https://t3ratech.github.io/t3rnel-browser-plugin/", "mcp": "t3ratech-dev/mcp-session-bridge" }
 ---
 
