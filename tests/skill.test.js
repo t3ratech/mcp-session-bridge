@@ -83,13 +83,38 @@ describe("the skill describes the server that actually exists", () => {
     assert.match(description[1], /Use when/i, "the description does not say when to use the skill");
   });
 
+  /**
+   * The store listings count as ours — they are where the extension is installed from,
+   * and the skill is useless to a reader who has to go and find them. The three hosts
+   * here are the three listings that are published; Opera is still in review and its URL
+   * 404s, so linking it would send a reader who followed the instructions to nothing.
+   */
+  const OUR_LINKS =
+    /^https:\/\/(t3ratech\.github\.io|github\.com\/t3ratech|chromewebstore\.google\.com|microsoftedge\.microsoft\.com|addons\.mozilla\.org)/;
+
   test("points every link at this product", () => {
     for (const url of skill.match(/https?:\/\/[^\s<>)"]+/g) ?? []) {
-      assert.match(
-        url, /^https:\/\/(t3ratech\.github\.io|github\.com\/t3ratech)/,
-        `${url} is not one of ours`,
-      );
+      assert.match(url, OUR_LINKS, `${url} is not one of ours`);
     }
+    assert.ok(!/addons\.opera\.com/.test(skill), "the Opera listing is not published yet");
+  });
+
+  /**
+   * An agent reading this in a registry has no bridge, no extension and no reason to
+   * guess that the native messaging host is a separate step. The first version pointed at
+   * `session_install` — a tool the reader does not have yet — and named no store at all.
+   */
+  test("carries an install path a reader with nothing installed can follow", () => {
+    for (const step of [
+      "npm install -g @t3ratech/mcp-session-bridge",
+      "mcp-session-bridge --install",
+      "https://chromewebstore.google.com/detail/",
+      "https://addons.mozilla.org/en-US/firefox/addon/t3rnel-browser/",
+    ]) {
+      assert.ok(skill.includes(step), `the skill never tells the reader: ${step}`);
+    }
+    // And the free path, so the skill is not a paywall dressed as instructions.
+    assert.match(skill, /standalone/i, "the skill never mentions the free standalone transport");
   });
 
   test("names the install path, since that is what an agent needs when the relay is absent", () => {
@@ -155,7 +180,7 @@ describe("every skill in this repository", () => {
   });
 
   test("every link points at something of ours or a site the skill is about", () => {
-    const allowed = /^https?:\/\/(t3ratech\.github\.io|github\.com|smithery\.ai|glama\.ai|mcpservers\.org|news\.ycombinator\.com|hn\.algolia\.com|www\.npmjs\.com)/;
+    const allowed = /^https?:\/\/(t3ratech\.github\.io|github\.com|smithery\.ai|glama\.ai|mcpservers\.org|news\.ycombinator\.com|hn\.algolia\.com|www\.npmjs\.com|chromewebstore\.google\.com|microsoftedge\.microsoft\.com|addons\.mozilla\.org)/;
     for (const [name, text] of Object.entries(skillText)) {
       for (const url of text.match(/https?:\/\/[^\s<>)"`]+/g) ?? []) {
         assert.match(url, allowed, `${name} links to ${url}, which is neither ours nor a site it documents`);

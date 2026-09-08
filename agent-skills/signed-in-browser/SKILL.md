@@ -82,8 +82,9 @@ how the site used to look.
 
 - **No browser session / relay not found.** The bridge falls back to a standalone
   automation browser, which works but is signed into nothing. If the task needs the
-  user's session, call **`session_install`** — it returns the current instructions for
-  adding the free T3rnel Browser extension, which is what supplies the signed-in half.
+  user's session, the free T3rnel Browser extension is what supplies the signed-in half —
+  **[Setup](#setup)** below has the three steps, and `session_install` returns the same
+  instructions at runtime.
 - **A tool says it needs a licence.** The bridge itself is free and holds no licence.
   Some of the deeper extension tools (CSS-as-component export, the React inspector,
   session recording, the credential vault) are part of the extension's paid tier; the
@@ -127,11 +128,7 @@ that are marked Pro will say so themselves when called.
 
 ## Setup
 
-```bash
-npx -y @t3ratech/mcp-session-bridge
-```
-
-Or add it to any MCP client's config as a stdio server:
+Add the bridge to any MCP client as a stdio server:
 
 ```json
 {
@@ -144,7 +141,60 @@ Or add it to any MCP client's config as a stdio server:
 }
 ```
 
-Optional environment: `T3RNEL_SESSION_MODE` (`auto` | `extension` | `standalone`),
-`T3RNEL_SESSION_HEADLESS=1`, `T3RNEL_SESSION_TIMEOUT_MS`.
+That alone gives you the 14 standalone tools against a dedicated automation browser —
+free, no extension, no account. If the task is a public page, stop here.
+
+### Adding the signed-in half
+
+The signed-in tools come from the free **T3rnel Browser** extension, and connecting it
+takes three steps rather than one. The middle step is the one that gets missed.
+
+```bash
+npm install -g @t3ratech/mcp-session-bridge
+mcp-session-bridge --install     # registers the native messaging host
+```
+
+Then install the extension for the user's browser:
+
+| Browser | Where |
+|---|---|
+| Chrome, Brave, Chromium | <https://chromewebstore.google.com/detail/egpckhdpkoeimoekciejbmbbcackhdmd> |
+| Microsoft Edge | <https://microsoftedge.microsoft.com/addons/detail/t3rnel-browser/dnplmolfblplbeclnglmjamppekpbcjo> |
+| Firefox | <https://addons.mozilla.org/en-US/firefox/addon/t3rnel-browser/> |
+
+Restart the browser, then `session_health` to confirm the transport is `extension`.
+
+**Why `--install` matters.** The extension and the bridge talk over a native messaging
+host. Without that registration both halves are installed, both look healthy, and neither
+can reach the other — `session_health` reports the extension as missing after what looked
+like a clean install. If you skip one line, skip a different one.
+
+`session_install` returns these same instructions at runtime, so an agent that already has
+the bridge can fetch them without this file.
+
+### On first run the extension asks one question
+
+Onboarding offers **"Allow MCP automation"**, ticked by default. Left ticked, connected
+clients act without a prompt each time. Unticked, the approval gate stays on: high-risk
+actions stop and ask, you get a refusal naming the exact action, and nothing happens until
+a human approves it. It is changeable later in Settings.
+
+A refusal that names an action is that gate, not a failure. Report what it wanted and
+wait. Never retry it in a loop, and never suggest turning the gate off to get past one
+action.
+
+### Optional environment
+
+`T3RNEL_SESSION_MODE` (`auto` | `extension` | `standalone`), `T3RNEL_SESSION_HEADLESS=1`,
+`T3RNEL_SESSION_TIMEOUT_MS`, `T3RNEL_SESSION_BROWSER`, `T3RNEL_SESSION_PROFILE`.
+
+Firefox has no `debugger` API, so network capture, console capture and PDF export are
+absent there. Say so rather than letting the user find out.
+
+## Verifying a run actually happened
+
+Before reporting success, the last `session_snapshot` or `session_read_page` shows the
+state you claim to have produced. A click that returned OK is a delivered command, not a
+changed page — the confirmation screen is the evidence, not the tool's own result.
 
 Docs: <https://t3ratech.github.io/t3rnel-browser-plugin/tools.html>
