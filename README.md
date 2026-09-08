@@ -77,6 +77,12 @@ The bridge works best with the T3rnel Browser extension, which lets your AI driv
 
 <https://t3ratech.github.io/t3rnel-browser-plugin/>
 
+## Where this is listed
+
+- [npm](https://www.npmjs.com/package/@t3ratech/mcp-session-bridge) · [Model Context Protocol registry](https://registry.modelcontextprotocol.io) · [Smithery](https://smithery.ai) · [Glama](https://glama.ai/mcp/servers)
+- Agent skills: [skills.sh](https://skills.sh/t3ratech/mcp-session-bridge/signed-in-browser) · [ClawHub](https://clawhub.ai/t3ratech/skills/t3rnel-signed-in-browser)
+- Listed in the [Claude Market skill directory](https://www.claudemarket.ai/skills)
+
 ## Licence
 
 Source-available, not open source. See [LICENSE](LICENSE) for the terms.
