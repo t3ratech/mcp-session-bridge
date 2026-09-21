@@ -101,6 +101,7 @@ export const TOOL_DEFINITIONS = [
         url: { type: "string", format: "uri", examples: ["https://github.com/notifications"], description: "Absolute URL to navigate to, including the scheme" },
         tabId: { type: "integer", description: "Tab id from session_list_tabs; uses the active tab when omitted" },
         newTab: { type: "boolean", default: false, description: "Open in a new tab instead of reusing the active tab (default false)" },
+        background: { type: "boolean", default: false, description: "Do not focus the tab — open/update it in the background so automation does not steal the user's foreground tab (default false)" },
       },
       additionalProperties: false,
     },
