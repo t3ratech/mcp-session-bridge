@@ -169,7 +169,7 @@ export function printInstallSummary(written, hostPath, out = console.log) {
   out("");
   out("Next steps:");
   out("  1. Install the T3rnel Browser extension:");
-  out("     https://t3ratech.github.io/t3rnel-browser-plugin/");
+  out("     https://browser.t3ratech.co.zw/");
   out("  2. Add this server to your MCP client config (Claude Code/Desktop, Cursor, VS Code, Windsurf, Antigravity, IntelliJ, Codex, Grok Build, Kimi Code/Desktop, JCode, Cline, OpenCode, Continue.dev, KiloCode, Roo Code, Aider, OpenClaw, Hermes, OpenFang and any MCP client):");
   out(JSON.stringify({
     mcpServers: {

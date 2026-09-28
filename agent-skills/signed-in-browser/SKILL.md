@@ -2,7 +2,7 @@
 name: signed-in-browser
 description: Drive the browser the user is already signed into, instead of a cold automation profile. Use when a task lives behind a login — a dashboard, an admin console, an internal tool, a ticket queue, a bank or billing page, webmail, a social account — or when a scripted login is failing on SSO, MFA, CAPTCHA or bot detection. Also use for reading a page's real rendered CSS, capturing a full page, inspecting React state, or recording and replaying a UI flow against a live session.
 identifier: t3rnel-signed-in-browser
-metadata: { "homepage": "https://t3ratech.github.io/t3rnel-browser-plugin/", "mcp": "t3ratech-dev/mcp-session-bridge" }
+metadata: { "homepage": "https://browser.t3ratech.co.zw/", "mcp": "t3ratech-dev/mcp-session-bridge" }
 ---
 
 # Working in a browser the user is already signed into
@@ -110,7 +110,7 @@ The other eight refuse without the extension, so don't plan a standalone run aro
 credential vault lives in the extension, so sign in by hand once in the standalone profile
 instead and the session persists.
 
-With the free T3rnel Browser extension connected, the same server serves 103 — the extra
+With the free T3rnel Browser extension connected, the same server serves 101 — the extra
 ones run inside the user's real tabs:
 
 - **CSS extraction** — copy an element's *computed* styles out as a component
@@ -198,4 +198,4 @@ Before reporting success, the last `session_snapshot` or `session_read_page` sho
 state you claim to have produced. A click that returned OK is a delivered command, not a
 changed page — the confirmation screen is the evidence, not the tool's own result.
 
-Docs: <https://t3ratech.github.io/t3rnel-browser-plugin/tools.html>
+Docs: <https://browser.t3ratech.co.zw/tools.html>

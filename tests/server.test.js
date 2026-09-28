@@ -432,7 +432,7 @@ describe("end to end through the native host and relay socket", () => {
     const text = response.result.content[0].text;
 
     // And the text has to be something a person can act on, not a status line.
-    assert.match(text, /t3ratech\.github\.io/, "names where to get the extension");
+    assert.match(text, /(t3ratech\.github\.io|t3ratech\.co\.zw)/, "names where to get the extension");
     assert.match(text, /mcp-session-bridge --install/, "names the command that registers the host");
     assert.match(text, /T3RNEL_SESSION_MODE=standalone/, "names the no-extension fallback");
     assert.match(text, /Claude Code\/Desktop/, "names the clients it works with");
@@ -440,7 +440,7 @@ describe("end to end through the native host and relay socket", () => {
     // The machine-readable copy travels with it, so an agent can branch on it.
     const details = JSON.parse(text.slice(text.indexOf("{")));
     assert.strictEqual(details.canInstall, true);
-    assert.match(details.storeUrl, /t3ratech\.github\.io/);
+    assert.match(details.storeUrl, /(t3ratech\.github\.io|t3ratech\.co\.zw)/);
     assert.match(details.freeStandaloneOption.how, /standalone/);
 
     proc.kill();

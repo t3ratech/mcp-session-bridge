@@ -14,7 +14,7 @@
  */
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -26,6 +26,7 @@ const skillText = Object.fromEntries(
   skillNames.map((name) => [name, readFileSync(join(skillsDir, name, "SKILL.md"), "utf8")]));
 const skill = skillText["signed-in-browser"];
 const { TOOL_DEFINITIONS, STANDALONE_TOOLS, EXTENSION_ONLY_TOOLS } = await import(join(root, "src", "tools.js"));
+const { browserToolsRegistry } = await import("./_t3rnel-root.mjs");
 const known = new Set(TOOL_DEFINITIONS.map((t) => t.name));
 
 describe("the skill describes the server that actually exists", () => {
@@ -42,9 +43,7 @@ describe("the skill describes the server that actually exists", () => {
     // credential vault in standalone mode; both refuse, and it found out one error at a time.
     assert.match(skill, new RegExp(`serves ${STANDALONE_TOOLS.length} tools`));
 
-    const registry = readFileSync(
-      join(root, "..", "..", "browser", "t3rnel-browser", "src", "browser-tools.ts"), "utf8",
-    );
+    const registry = readFileSync(browserToolsRegistry(), "utf8");
     const open = registry.indexOf("[", registry.indexOf("export const BROWSER_TOOL_NAMES"));
     const names = [...registry.slice(open, registry.indexOf("] as const", open)).matchAll(/"([a-z0-9_]+)"/g)];
     assert.match(skill, new RegExp(`serves ${names.length + 1}\\b`), "the with-extension count is stale");
@@ -90,7 +89,7 @@ describe("the skill describes the server that actually exists", () => {
    * 404s, so linking it would send a reader who followed the instructions to nothing.
    */
   const OUR_LINKS =
-    /^https:\/\/(t3ratech\.github\.io|github\.com\/t3ratech|chromewebstore\.google\.com|microsoftedge\.microsoft\.com|addons\.mozilla\.org)/;
+    /^https:\/\/([a-z0-9-]+\.t3ratech\.co\.zw|t3ratech\.github\.io|github\.com\/t3ratech|chromewebstore\.google\.com|microsoftedge\.microsoft\.com|addons\.mozilla\.org)/;
 
   test("points every link at this product", () => {
     for (const url of skill.match(/https?:\/\/[^\s<>)"]+/g) ?? []) {
@@ -180,7 +179,7 @@ describe("every skill in this repository", () => {
   });
 
   test("every link points at something of ours or a site the skill is about", () => {
-    const allowed = /^https?:\/\/(t3ratech\.github\.io|github\.com|smithery\.ai|glama\.ai|mcpservers\.org|news\.ycombinator\.com|hn\.algolia\.com|www\.npmjs\.com|chromewebstore\.google\.com|microsoftedge\.microsoft\.com|addons\.mozilla\.org)/;
+    const allowed = /^https?:\/\/([a-z0-9-]+\.t3ratech\.co\.zw|t3ratech\.github\.io|github\.com|smithery\.ai|glama\.ai|mcpservers\.org|news\.ycombinator\.com|hn\.algolia\.com|www\.npmjs\.com|chromewebstore\.google\.com|microsoftedge\.microsoft\.com|addons\.mozilla\.org)/;
     for (const [name, text] of Object.entries(skillText)) {
       for (const url of text.match(/https?:\/\/[^\s<>)"`]+/g) ?? []) {
         assert.match(url, allowed, `${name} links to ${url}, which is neither ours nor a site it documents`);

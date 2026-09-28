@@ -14,6 +14,7 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, existsSync } from "node:fs";
+import { browserToolsRegistry } from "./_t3rnel-root.mjs";
 import { tmpdir } from "node:os";
 import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -59,9 +60,7 @@ describe("the MCPB manifest describes the server that is actually shipped", () =
       "the two counts are equal again, so this assertion no longer distinguishes them",
     );
 
-    const registry = readFileSync(
-      join(root, "..", "..", "browser", "t3rnel-browser", "src", "browser-tools.ts"), "utf8",
-    );
+    const registry = readFileSync(browserToolsRegistry(), "utf8");
     const open = registry.indexOf("[", registry.indexOf("export const BROWSER_TOOL_NAMES"));
     const names = [...registry.slice(open, registry.indexOf("] as const", open)).matchAll(/"([a-z0-9_]+)"/g)];
     assert.ok(names.length > 50, "the extension registry parsed to an implausible count");
@@ -72,9 +71,7 @@ describe("the MCPB manifest describes the server that is actually shipped", () =
     // This is the copy npm, Glama and every MCP directory render, and it carried the same
     // inflated standalone figure the manifest did. It is a published claim, so it is pinned
     // to the registry rather than left to be re-typed correctly next time.
-    const registry = readFileSync(
-      join(root, "..", "..", "browser", "t3rnel-browser", "src", "browser-tools.ts"), "utf8",
-    );
+    const registry = readFileSync(browserToolsRegistry(), "utf8");
     const open = registry.indexOf("[", registry.indexOf("export const BROWSER_TOOL_NAMES"));
     const names = [...registry.slice(open, registry.indexOf("] as const", open)).matchAll(/"([a-z0-9_]+)"/g)];
     assert.match(
@@ -106,7 +103,7 @@ describe("the MCPB manifest describes the server that is actually shipped", () =
 
   test("points every link at a page that is part of this product", () => {
     for (const url of [manifest.homepage, manifest.documentation, manifest.support, ...manifest.privacy_policies]) {
-      assert.match(url, /^https:\/\/(t3ratech\.github\.io|github\.com\/t3ratech)/, `${url} is not one of ours`);
+      assert.match(url, /^https:\/\/([a-z0-9-]+\.t3ratech\.co\.zw|t3ratech\.github\.io|github\.com\/t3ratech)/, `${url} is not one of ours`);
     }
   });
 

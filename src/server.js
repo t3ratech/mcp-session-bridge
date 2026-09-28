@@ -16,7 +16,7 @@
  *
  * Usage:
  *   1. Install the T3rnel Browser extension:
- *        https://t3ratech.github.io/t3rnel-browser-plugin/
+ *        https://browser.t3ratech.co.zw/
  *   2. npm install -g @t3ratech/mcp-session-bridge
  *   3. mcp-session-bridge --install   (registers the native messaging host)
  *   4. Add to your MCP client config:
@@ -42,8 +42,8 @@ const require = createRequire(import.meta.url);
 const { version: SERVER_VERSION } = require("../package.json");
 
 const BROWSER_PRODUCT_URL =
-  "https://t3ratech.github.io/t3rnel-browser-plugin/";
-const BROWSER_HELP_URL = "https://t3ratech.github.io/t3rnel-browser-plugin/";
+  "https://browser.t3ratech.co.zw/";
+const BROWSER_HELP_URL = "https://browser.t3ratech.co.zw/";
 
 class McpError extends Error {
   constructor(code, message) {

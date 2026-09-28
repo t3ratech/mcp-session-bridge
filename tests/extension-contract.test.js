@@ -20,8 +20,9 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const { TOOL_DEFINITIONS, SESSION_TO_BROWSER } = await import(join(root, "src", "tools.js"));
+const { extensionSrcRoot } = await import("./_t3rnel-root.mjs");
 
-const extensionRoot = join(root, "..", "..", "browser", "t3rnel-browser", "src");
+const extensionRoot = extensionSrcRoot();
 const sources = ["browser-tools.ts", "browser-tools-extended.ts"]
   .map((name) => join(extensionRoot, name))
   .filter((path) => existsSync(path))

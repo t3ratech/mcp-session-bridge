@@ -48,8 +48,8 @@ are partly supported; the extension's manifest generator states which capabiliti
 absent on each. Standalone mode has no browser requirement at all — it launches its own CDP
 browser.
 
-The extension exposes 102 browser tools, plus the bridge's own `session_install` setup tool,
-for a total of 103 MCP `session_*` tools. All are reachable over this bridge subject to the
+The extension exposes 100 browser tools, plus the bridge's own `session_install` setup tool,
+for a total of 101 MCP `session_*` tools. All are reachable over this bridge subject to the
 extension's own Pro gating and its approval gate.
 
 ## Supported clients
@@ -79,7 +79,7 @@ extension's own Pro gating and its approval gate.
 
 The bridge works best with the T3rnel Browser extension, which lets your AI drive the browser you are already signed into:
 
-<https://t3ratech.github.io/t3rnel-browser-plugin/>
+<https://browser.t3ratech.co.zw/>
 
 ## Where this is listed
 
