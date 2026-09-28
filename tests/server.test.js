@@ -459,4 +459,51 @@ describe("end to end through the native host and relay socket", () => {
 
     proc.kill();
   });
+
+  it("caps the merged tool list at 100 by dropping the lowest-value verbs", async () => {
+    /**
+     * Google Antigravity refuses to install a server whose tools/list exceeds 100.
+     * A stale extension build publishes every registry name — 100 + session_install
+     * lands at 101 and the whole server is rejected. The bridge trims the two niche
+     * QA verbs (md_diff, check_spelling) so every extension build stays under the
+     * ceiling.
+     */
+    const dir = mkdtempSync(join(tmpdir(), "t3rnel-session-e2e-"));
+    const socketPath = join(dir, "bridge.sock");
+    const host = spawnHost({ T3RNEL_SESSION_SOCKET: socketPath });
+    host.stderr.on("data", () => { });
+    const chrome = new FakeChrome(host);
+
+    try {
+      await waitFor(() => existsSync(socketPath));
+
+      const proc = spawnServer({
+        T3RNEL_SESSION_MODE: "extension",
+        T3RNEL_SESSION_SOCKET: socketPath,
+      });
+      proc.stderr.on("data", () => { });
+      send(proc, { jsonrpc: "2.0", id: 1, method: "tools/list", params: {} });
+
+      const registry = await chrome.requestOfMethod("tools/list");
+      // A stale extension — all 100 registry names, internals included.
+      const staleTools = [
+        "md_diff", "check_spelling",
+        ...Array.from({ length: 98 }, (_, i) => `tool_${i}`),
+      ].map((n) => ({ name: `browser_${n}`, description: "d", inputSchema: { type: "object", properties: {} } }));
+      chrome.respond(registry.id, { tools: staleTools });
+
+      const line = await nextLine(proc.stdout);
+      const response = JSON.parse(line);
+      assert.strictEqual(response.id, 1);
+      const names = response.result.tools.map((t) => t.name);
+      assert.ok(names.length <= 100, `expected <=100 tools, got ${names.length}`);
+      assert.ok(!names.includes("session_md_diff"));
+      assert.ok(!names.includes("session_check_spelling"));
+      assert.ok(names.includes("session_install"));
+
+      proc.kill();
+    } finally {
+      host.kill();
+    }
+  });
 });

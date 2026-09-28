@@ -288,6 +288,19 @@ export function startMcpServer({
     return tools;
   }
 
+  /**
+   * Google Antigravity refuses to install a server whose tools/list exceeds 100
+   * entries. Extension builds older than the internal-only filter publish all 100
+   * registry names, which with session_install lands at 101 and is rejected. When
+   * the merged list would exceed the ceiling, the bridge drops the lowest-value
+   * verbs — md_diff and check_spelling are single-purpose QA helpers that have
+   * near-siblings (browser_audit, browser_md_view) and lose little. The cap is
+   * bridge-side so every extension build, including stale ones, stays installable.
+   * Dropped tools still execute if called by name — they are just unlisted.
+   */
+  const MCP_TOOL_LIST_CEILING = 100;
+  const MCP_DROP_WHEN_OVER_CEILING = ["session_md_diff", "session_check_spelling"];
+
   async function listedTools() {
     const bridgeOnly = [findTool("session_install")].filter(Boolean);
     let tools;
@@ -299,7 +312,12 @@ export function startMcpServer({
     }
     if (!tools) return SESSION_TOOLS.map(toWireTool);
     const names = new Set(tools.map((t) => t.name));
-    return [...tools, ...bridgeOnly.filter((t) => !names.has(t.name))].map(toWireTool);
+    const merged = [...tools, ...bridgeOnly.filter((t) => !names.has(t.name))];
+    const listed =
+      merged.length > MCP_TOOL_LIST_CEILING
+        ? merged.filter((t) => !MCP_DROP_WHEN_OVER_CEILING.includes(t.name))
+        : merged;
+    return listed.map(toWireTool);
   }
 
   async function resolveTool(name) {

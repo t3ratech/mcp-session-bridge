@@ -48,9 +48,12 @@ are partly supported; the extension's manifest generator states which capabiliti
 absent on each. Standalone mode has no browser requirement at all — it launches its own CDP
 browser.
 
-The extension exposes 100 browser tools, plus the bridge's own `session_install` setup tool,
-for a total of 101 MCP `session_*` tools. All are reachable over this bridge subject to the
-extension's own Pro gating and its approval gate.
+The extension exposes up to 100 browser tools, plus the bridge's own `session_install` setup
+tool. If the merged list would exceed 100 tools — which Google Antigravity refuses to install —
+the bridge drops the two lowest-value verbs (`session_md_diff`, `session_check_spelling`) so the
+published list stays at or under the ceiling for every extension build. Dropped tools still
+execute when called by name; all tools remain subject to the extension's Pro gating and approval
+gate.
 
 ## Supported clients
 
