@@ -1,6 +1,7 @@
 # MCP Session Bridge
 
 [![Listed on mcpservers.org](https://mcpservers.org/badge.svg)](https://mcpservers.org/servers/t3ratech/mcp-session-bridge)
+[![Glama score](https://glama.ai/mcp/servers/t3ratech/mcp-session-bridge/badges/score.svg)](https://glama.ai/mcp/servers/t3ratech/mcp-session-bridge)
 
 A free MCP (Model Context Protocol) server that exposes **authenticated browser-session automation**: `session_*` tools that run in the user's own Chrome profile and real logged-in session, which cloud browser APIs cannot do. A free **standalone** mode is also available; it launches a dedicated automation browser so the same `session_*` tools work without the extension or a license.
 
@@ -40,16 +41,21 @@ implemented, never enforced and never purchasable.
 
 ## Browser support
 
-Extension mode needs the T3rnel Browser extension, which installs on Chrome, Brave, Edge
-and Chromium from one package. Opera implements no side-panel API and Firefox no debugger
-API, so both are partly supported; the extension's manifest generator states which
-capabilities are absent on each. Standalone mode has no browser requirement at all — it
-launches its own CDP browser.
+Extension mode needs the T3rnel Browser extension, which is packaged for Chrome, Brave,
+Edge, Opera, Chromium and Firefox and ships from each browser's own extension store. Brave
+and Chromium install from the Chrome Web Store; Edge, Opera and Firefox each have a
+separate package. Opera implements no side-panel API and Firefox no debugger API, so both
+are partly supported; the extension's manifest generator states which capabilities are
+absent on each. Standalone mode has no browser requirement at all — it launches its own CDP
+browser.
 
 The extension exposes 97 browser tools over this bridge — the full surface minus three
 licence-maintenance tools that stay panel-only — subject to the extension's own Pro
 gating. The count stays under the 100-tool limit some MCP clients enforce, and
 `session_install` (setup instructions) brings the bridge's own listing to 98.
+An older extension that publishes 100 tools would push the merged list past that limit —
+Google Antigravity refuses to install it — so the bridge then leaves `session_md_diff` and
+`session_check_spelling` unlisted. They still run when called by name.
 
 ## Supported clients
 
@@ -86,19 +92,13 @@ without the extension.
 
 ## Where this is listed
 
-- [npm](https://www.npmjs.com/package/@t3ratech/mcp-session-bridge) · [Model Context Protocol registry](https://registry.modelcontextprotocol.io) · [Smithery](https://smithery.ai) · [Glama](https://glama.ai/mcp/servers)
+- [npm](https://www.npmjs.com/package/@t3ratech/mcp-session-bridge) · [Official MCP registry](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.t3ratech%2Fmcp-session-bridge/versions/latest) · [Smithery](https://smithery.ai) · [Glama](https://glama.ai/mcp/servers/t3ratech/mcp-session-bridge)
 - Agent skills: [skills.sh](https://skills.sh/t3ratech/mcp-session-bridge/signed-in-browser) · [ClawHub](https://clawhub.ai/t3ratech/skills/t3rnel-signed-in-browser)
 - Listed in the [Claude Market skill directory](https://www.claudemarket.ai/skills)
 
 ## Licence
 
-Source-available, not open source. See [LICENSE](LICENSE) for the terms.
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the full text.
 
-In short: the published npm package is free to use for any purpose, commercial or
-otherwise; you may read and locally modify this source; you may not redistribute it or
-publish a derivative without written permission.
-
-Directory listings that expect an SPDX identifier will report "no licence" for this
-repository. That is expected — GitHub detects the file and classifies it as `other` /
-`NOASSERTION`, because the terms are bespoke rather than one of the recognised
-open-source licences. The licence exists; it simply is not an OSI one.
+The published npm package is free to use for any purpose, commercial or otherwise. You may
+read and modify this source; redistribution is governed by the Apache-2.0 terms.

@@ -10,6 +10,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { extensionSrcRoot } from "./_t3rnel-root.mjs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -17,7 +18,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const { TOOL_DEFINITIONS } = await import(join(root, "src", "tools.js"));
 
 const recorder = readFileSync(
-  join(root, "..", "..", "browser", "t3rnel-browser", "src", "features", "session-recorder.ts"),
+  join(extensionSrcRoot(), "features", "session-recorder.ts"),
   "utf8",
 );
 

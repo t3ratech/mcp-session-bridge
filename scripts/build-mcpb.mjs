@@ -25,7 +25,17 @@ import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..");
-const repoRoot = resolve(root, "..", "..", "..");
+// The bridge ships from its own repo but the bundle copies extension assets from the
+// t3rnel monorepo, which is a sibling checkout — the exact layout varies by machine,
+// so hunt candidates rather than bake one. T3RNEL_REPO_ROOT overrides everything.
+const repoRootCandidates = [
+  process.env.T3RNEL_REPO_ROOT,
+  resolve(root, "..", "t3rnel"),
+  resolve(root, "..", "..", ".."),
+].filter(Boolean);
+const repoRoot = repoRootCandidates.find((p) =>
+  existsSync(join(p, "products", "browser", "t3rnel-browser", "src", "browser-tools.ts")));
+if (!repoRoot) throw new Error(`build-mcpb: t3rnel monorepo not found; set T3RNEL_REPO_ROOT (tried: ${repoRootCandidates.join(", ")})`);
 const outDir = join(root, "build");
 
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
