@@ -1,7 +1,7 @@
 ---
 name: post-to-hacker-news
 description: Submit to Hacker News, including Show HN, by driving a signed-in browser. Use when launching a product, tool or MCP server, or when a submission needs its customary author comment. Covers the title rules, when a Show HN is allowed, the url-or-text choice, and how to tell a real submission from a silent failure.
-metadata: { "homepage": "https://t3ratech.github.io/t3rnel-browser-plugin/", "mcp": "t3ratech-dev/mcp-session-bridge" }
+metadata: { "homepage": "https://browser.t3ratech.co.zw/", "mcp": "t3ratech-dev/mcp-session-bridge" }
 ---
 
 # Submitting to Hacker News

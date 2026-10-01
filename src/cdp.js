@@ -22,9 +22,11 @@ import { join } from "node:path";
 import { connectWebSocket } from "./ws.js";
 
 const CDP_CALL_TIMEOUT_MS = 30000;
+const CDP_PORT_BUDGET_MS = 45_000;
 const MAX_PAGE_TEXT = 50000;
 
-export function defaultBrowserPath(env = process.env) {
+/** `os` and `exists` are injectable so each platform's search order is testable anywhere. */
+export function defaultBrowserPath(env = process.env, os = platform(), exists = existsSync) {
   if (env.T3RNEL_SESSION_BROWSER) return env.T3RNEL_SESSION_BROWSER;
   const candidates = {
     linux: [
@@ -47,9 +49,9 @@ export function defaultBrowserPath(env = process.env) {
       "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
       "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
     ],
-  }[platform()] ?? [];
+  }[os] ?? [];
   for (const candidate of candidates) {
-    if (existsSync(candidate)) return candidate;
+    if (exists(candidate)) return candidate;
   }
   return null;
 }
@@ -156,16 +158,16 @@ const SNAPSHOT_JS = `(() => {
 const refAttr = (ref) => String(ref).replace(/^@/, "");
 
 const FIND_ELEMENT_JS = (selector, ref) => `(() => {
-  const el = ${ref != null ? `document.querySelector("[data-t3rnel-ref='${refAttr(ref)}']")` : `document.querySelector(${JSON.stringify(selector ?? "")})`};
-  if (!el) throw new Error("Element not found: ${ref ?? selector}");
+  const el = ${ref != null ? `document.querySelector(${JSON.stringify(`[data-t3rnel-ref='${refAttr(ref)}']`)})` : `document.querySelector(${JSON.stringify(selector ?? "")})`};
+  if (!el) throw new Error(${JSON.stringify(`Element not found: ${ref ?? selector}`)});
   el.scrollIntoView({ block: "center", inline: "center" });
   const rect = el.getBoundingClientRect();
   return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
 })()`;
 
 const FILL_JS = (selector, ref, value) => `(() => {
-  const el = ${ref != null ? `document.querySelector("[data-t3rnel-ref='${refAttr(ref)}']")` : `document.querySelector(${JSON.stringify(selector ?? "")})`};
-  if (!el) throw new Error("Element not found: ${ref ?? selector}");
+  const el = ${ref != null ? `document.querySelector(${JSON.stringify(`[data-t3rnel-ref='${refAttr(ref)}']`)})` : `document.querySelector(${JSON.stringify(selector ?? "")})`};
+  if (!el) throw new Error(${JSON.stringify(`Element not found: ${ref ?? selector}`)});
   el.focus();
   const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
   const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
@@ -185,9 +187,9 @@ const FILL_JS = (selector, ref, value) => `(() => {
  * the page makes visible.
  */
 const SELECT_JS = (selector, ref, { value, text, index }) => `(() => {
-  const el = ${ref != null ? `document.querySelector("[data-t3rnel-ref='${refAttr(ref)}']")` : `document.querySelector(${JSON.stringify(selector ?? "")})`};
-  if (!el) throw new Error("Element not found: ${ref ?? selector}");
-  if (el.tagName !== "SELECT") throw new Error("target is not a <select>: ${ref ?? selector}");
+  const el = ${ref != null ? `document.querySelector(${JSON.stringify(`[data-t3rnel-ref='${refAttr(ref)}']`)})` : `document.querySelector(${JSON.stringify(selector ?? "")})`};
+  if (!el) throw new Error(${JSON.stringify(`Element not found: ${ref ?? selector}`)});
+  if (el.tagName !== "SELECT") throw new Error(${JSON.stringify(`target is not a <select>: ${ref ?? selector}`)});
   const options = Array.from(el.options);
   const wantValue = ${JSON.stringify(value ?? null)};
   const wantText = ${JSON.stringify(text ?? null)};
@@ -220,7 +222,14 @@ export class StandaloneBrowser {
    * @param {string} [options.display] An X display such as ":99". When set the browser
    *   runs *headful* on that display rather than headless — see the note on `launch`.
    */
-  constructor({ browserPath = defaultBrowserPath(), profileDir = defaultProfileDir(), headless = false, display = defaultDisplay() } = {}) {
+  /**
+   * `portBudgetMs` and `callTimeoutMs` are the two waits a slow machine needs to be
+   * generous with; they are options so a test can drive their failure paths in
+   * milliseconds instead of the better part of a minute.
+   */
+  constructor({ browserPath = defaultBrowserPath(), profileDir = defaultProfileDir(), headless = false, display = defaultDisplay(), portBudgetMs = CDP_PORT_BUDGET_MS, callTimeoutMs = CDP_CALL_TIMEOUT_MS } = {}) {
+    this.portBudgetMs = portBudgetMs;
+    this.callTimeoutMs = callTimeoutMs;
     this.browserPath = browserPath;
     this.profileDir = profileDir;
     this.headless = headless;
@@ -300,8 +309,15 @@ export class StandaloneBrowser {
       this.sessions.clear();
       earlyExit = new Error(explainBrowserExit(this.browserPath, code, stderrTail));
     });
+    /**
+     * Fifteen seconds assumed a browser that starts in ~1s. On a machine running
+     * the full gate the same cold start passed that mark and read as a hang, so
+     * the budget is generous here and the real failure signal stays `earlyExit`:
+     * a browser that cannot start still dies fast, while a slow one gets its
+     * honest chance.
+     */
     const started = Date.now();
-    while (Date.now() - started < 15000) {
+    while (Date.now() - started < this.portBudgetMs) {
       if (earlyExit) throw earlyExit;
       if (existsSync(portFile)) {
         const port = Number(readFileSync(portFile, "utf8").split("\n")[0]);
@@ -313,7 +329,7 @@ export class StandaloneBrowser {
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
     throw new Error(
-      `Standalone browser did not expose a CDP port within 15s (binary: ${this.browserPath})` +
+      `Standalone browser did not expose a CDP port within ${this.portBudgetMs / 1000}s (binary: ${this.browserPath})` +
         (stderrTail.trim() ? `\n${lastMeaningfulLine(stderrTail)}` : "")
     );
   }
@@ -422,7 +438,7 @@ export class StandaloneBrowser {
       const timer = setTimeout(() => {
         session.pending.delete(id);
         reject(new Error(`CDP call ${method} timed out`));
-      }, CDP_CALL_TIMEOUT_MS);
+      }, this.callTimeoutMs);
       session.pending.set(id, { resolve, reject, timer });
       session.ws.send(JSON.stringify({ id, method, params }));
     });

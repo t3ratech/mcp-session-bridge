@@ -101,6 +101,7 @@ export const TOOL_DEFINITIONS = [
         url: { type: "string", format: "uri", examples: ["https://github.com/notifications"], description: "Absolute URL to navigate to, including the scheme" },
         tabId: { type: "integer", description: "Tab id from session_list_tabs; uses the active tab when omitted" },
         newTab: { type: "boolean", default: false, description: "Open in a new tab instead of reusing the active tab (default false)" },
+        background: { type: "boolean", default: false, description: "Do not focus the tab — open/update it in the background so automation does not steal the user's foreground tab (default false)" },
       },
       additionalProperties: false,
     },
@@ -152,9 +153,9 @@ export const TOOL_DEFINITIONS = [
       "Click an element, by CSS selector or by an @eN ref from session_snapshot. Scrolls the element into view and dispatches a real mouse press and release at its centre, so handlers that ignore synthetic events still fire. Returns {clicked} naming what was targeted. Fails with 'Element not found' rather than clicking something else when nothing matches.",
     inputSchema: {
       type: "object",
-      required: ["selector"],
+      requireOneOf: ["selector", "ref"],
       properties: {
-        selector: { type: "string", description: "CSS selector for the element to click" },
+        selector: { type: "string", description: "CSS selector for the element to click; pass ref instead to use a handle from session_snapshot" },
         ref: { type: "string", pattern: "^@?e\\d+$", examples: ["@e12"], description: "A ref from session_snapshot, such as @e12, used instead of selector" },
         tabId: { type: "integer", description: "Tab to act on; uses the active tab when omitted" },
       },
@@ -174,9 +175,10 @@ export const TOOL_DEFINITIONS = [
       "Set a form field's value in one step — input, textarea, or a rich-text editor such as ProseMirror, Lexical or Slate. Writes through the native value setter and then fires input and change, which is what React and Vue listen for. Returns {filled} naming the field. Use session_type instead when a field only reacts to real keystrokes, and session_select for a dropdown.",
     inputSchema: {
       type: "object",
-      required: ["selector", "value"],
+      required: ["value"],
+      requireOneOf: ["selector", "ref"],
       properties: {
-        selector: { type: "string", description: "CSS selector for the field to fill" },
+        selector: { type: "string", description: "CSS selector for the field to fill; pass ref instead to use a handle from session_snapshot" },
         ref: { type: "string", pattern: "^@?e\\d+$", examples: ["@e12"], description: "A ref from session_snapshot, such as @e12, used instead of selector" },
         value: { type: "string", description: "Text to place in the field, replacing whatever is there" },
         tabId: { type: "integer", description: "Tab to act on; uses the active tab when omitted" },
@@ -197,9 +199,10 @@ export const TOOL_DEFINITIONS = [
       "Type text one character at a time, firing the key events a real keyboard would. Use this instead of session_fill when a field only reacts to keystrokes — search boxes with live suggestions, autocompletes, and inputs with per-character validation. Returns {typed} with the number of characters sent. Slower than session_fill, so reach for it only when session_fill leaves the page unchanged.",
     inputSchema: {
       type: "object",
-      required: ["selector", "text"],
+      required: ["text"],
+      requireOneOf: ["selector", "ref"],
       properties: {
-        selector: { type: "string", description: "CSS selector for the field to type into" },
+        selector: { type: "string", description: "CSS selector for the field to type into; pass ref instead to use a handle from session_snapshot" },
         ref: { type: "string", pattern: "^@?e\\d+$", examples: ["@e12"], description: "A ref from session_snapshot, such as @e12, used instead of selector" },
         text: { type: "string", description: "Text to type, one character at a time" },
         tabId: { type: "integer", description: "Tab to act on; uses the active tab when omitted" },
@@ -220,9 +223,9 @@ export const TOOL_DEFINITIONS = [
       "Choose an option in a <select> dropdown, by value, by visible text, or by index. Filling a select as though it were a text field does nothing — the native value setter belongs to HTMLInputElement and has no effect here — which is the silent failure this tool exists to prevent. Matches value first, then exact visible text, then a substring, then index. Returns {selected, value, text} for the chosen option, and on no match fails with the available options listed.",
     inputSchema: {
       type: "object",
-      required: ["selector"],
+      requireOneOf: ["selector", "ref"],
       properties: {
-        selector: { type: "string", description: "CSS selector for the <select>" },
+        selector: { type: "string", description: "CSS selector for the <select>; pass ref instead to use a handle from session_snapshot" },
         ref: { type: "string", pattern: "^@?e\\d+$", examples: ["@e12"], description: "A ref from session_snapshot, such as @e12, used instead of selector" },
         value: { type: "string", description: "Option value to choose; tried first" },
         text: { type: "string", description: "Visible option text to choose; matched exactly first, then by substring" },
@@ -494,7 +497,10 @@ export const STANDALONE_TOOLS = TOOL_DEFINITIONS.filter((tool) => !tool.requires
  * here rather than being kept out of the registry, where it earns its place.
  */
 export function toWireTool({ requiresExtension, ...tool }) {
-  return tool;
+  // `requireOneOf` is enforced here, never published: a top-level `anyOf` in an input
+  // schema is refused outright by some MCP hosts, and an unknown keyword is noise to all.
+  const { requireOneOf, ...inputSchema } = tool.inputSchema;
+  return { ...tool, inputSchema };
 }
 export const EXTENSION_ONLY_TOOLS = TOOL_DEFINITIONS.filter((tool) => tool.requiresExtension);
 
@@ -537,6 +543,16 @@ export function validateArguments(args, schema) {
       return `Missing required argument: ${key}`;
     }
   }
+  /**
+   * An element is named by `selector` or by a snapshot `ref`, and either will do.
+   *
+   * Publishing `selector` as required told every schema-validating client that a ref
+   * alone could not be sent, so the snapshot-then-act loop the descriptions recommend
+   * was unreachable over MCP. The rule the tool actually has is "one of these".
+   */
+  if (Array.isArray(schema.requireOneOf) && !schema.requireOneOf.some((key) => args[key] !== undefined)) {
+    return `Missing required argument: pass ${schema.requireOneOf.join(" or ")}`;
+  }
   for (const [key, prop] of Object.entries(properties)) {
     const value = args[key];
     if (value === undefined) continue;
@@ -544,6 +560,21 @@ export function validateArguments(args, schema) {
     if (typeError) return typeError;
     if (prop.enum && !prop.enum.includes(value)) {
       return `${key} must be one of: ${prop.enum.join(", ")}`;
+    }
+    /**
+     * The published bounds are part of the contract, not decoration.
+     *
+     * `ref` declares `^@?e\d+$` and the standalone page scripts splice it into an
+     * attribute selector; an unchecked pattern let any string through to that splice.
+     */
+    if (prop.pattern && typeof value === "string" && !new RegExp(prop.pattern).test(value)) {
+      return `${key} must match ${prop.pattern}, but got ${JSON.stringify(value)}`;
+    }
+    if (typeof value === "number" && typeof prop.minimum === "number" && value < prop.minimum) {
+      return `${key} must be at least ${prop.minimum}, but got ${value}`;
+    }
+    if (typeof value === "number" && typeof prop.maximum === "number" && value > prop.maximum) {
+      return `${key} must be at most ${prop.maximum}, but got ${value}`;
     }
   }
   return null;

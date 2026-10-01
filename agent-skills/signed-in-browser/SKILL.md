@@ -2,7 +2,7 @@
 name: signed-in-browser
 description: Drive the browser the user is already signed into, instead of a cold automation profile. Use when a task lives behind a login — a dashboard, an admin console, an internal tool, a ticket queue, a bank or billing page, webmail, a social account — or when a scripted login is failing on SSO, MFA, CAPTCHA or bot detection. Also use for reading a page's real rendered CSS, capturing a full page, inspecting React state, or recording and replaying a UI flow against a live session.
 identifier: t3rnel-signed-in-browser
-metadata: { "homepage": "https://t3ratech.github.io/t3rnel-browser-plugin/", "mcp": "t3ratech-dev/mcp-session-bridge" }
+metadata: { "homepage": "https://browser.t3ratech.co.zw/", "mcp": "t3ratech-dev/mcp-session-bridge" }
 ---
 
 # Working in a browser the user is already signed into
@@ -110,7 +110,7 @@ The other eight refuse without the extension, so don't plan a standalone run aro
 credential vault lives in the extension, so sign in by hand once in the standalone profile
 instead and the session persists.
 
-With the free T3rnel Browser extension connected, the same server serves 103 — the extra
+With the free T3rnel Browser extension connected, the same server serves 98 — the extra
 ones run inside the user's real tabs:
 
 - **CSS extraction** — copy an element's *computed* styles out as a component
@@ -147,15 +147,12 @@ free, no extension, no account. If the task is a public page, stop here.
 
 ### Adding the signed-in half
 
-The signed-in tools come from the free **T3rnel Browser** extension, and connecting it
-takes three steps rather than one. The middle step is the one that gets missed.
+The signed-in tools come from the free **T3rnel Browser** extension. Since 1.3.0 there is
+nothing to install on the bridge side — the extension's service worker dials out to the
+loopback WebSocket this server is already listening on, so the `npx` stanza above is the
+whole setup.
 
-```bash
-npm install -g @t3ratech/mcp-session-bridge
-mcp-session-bridge --install     # registers the native messaging host
-```
-
-Then install the extension for the user's browser:
+Install the extension for the user's browser:
 
 | Browser | Where |
 |---|---|
@@ -163,22 +160,25 @@ Then install the extension for the user's browser:
 | Microsoft Edge | <https://microsoftedge.microsoft.com/addons/detail/t3rnel-browser/dnplmolfblplbeclnglmjamppekpbcjo> |
 | Firefox | <https://addons.mozilla.org/en-US/firefox/addon/t3rnel-browser/> |
 
-Restart the browser, then `session_health` to confirm the transport is `extension`.
-
-**Why `--install` matters.** The extension and the bridge talk over a native messaging
-host. Without that registration both halves are installed, both look healthy, and neither
-can reach the other — `session_health` reports the extension as missing after what looked
-like a clean install. If you skip one line, skip a different one.
+With **"Allow AI/MCP automation"** ticked at onboarding — the default — the extension
+pairs with the bridge silently. If the user unticked it, the approval gate is armed and
+the first connection shows a **pairing card** in the side panel: approve it once and every
+MCP action is covered permanently. Then `session_health` reports the transport as
+`extension`.
 
 `session_install` returns these same instructions at runtime, so an agent that already has
 the bridge can fetch them without this file.
 
-### On first run the extension asks one question
+On bridges and extensions older than 1.3.0 the transport is a native-messaging host
+registered by `mcp-session-bridge --install`. That path still works; it is scheduled for
+removal in 1.4.
 
-Onboarding offers **"Allow MCP automation"**, ticked by default. Left ticked, connected
-clients act without a prompt each time. Unticked, the approval gate stays on: high-risk
-actions stop and ask, you get a refusal naming the exact action, and nothing happens until
-a human approves it. It is changeable later in Settings.
+### What the approval looks like
+
+With the approval gate armed, the pairing card is the one prompt a connected client ever
+causes. Approving it covers every MCP action from then on, permanently. The separate approval gate in Settings —
+off by default — can still ask before page-changing actions or before everything for
+users who want it.
 
 A refusal that names an action is that gate, not a failure. Report what it wanted and
 wait. Never retry it in a loop, and never suggest turning the gate off to get past one
@@ -198,4 +198,4 @@ Before reporting success, the last `session_snapshot` or `session_read_page` sho
 state you claim to have produced. A click that returned OK is a delivered command, not a
 changed page — the confirmation screen is the evidence, not the tool's own result.
 
-Docs: <https://t3ratech.github.io/t3rnel-browser-plugin/tools.html>
+Docs: <https://browser.t3ratech.co.zw/tools.html>

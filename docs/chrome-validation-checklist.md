@@ -4,7 +4,7 @@ Use this checklist to confirm the bridge works end-to-end in Chrome with an auth
 
 ## 1. Extension
 
-- [ ] Install the [T3rnel Browser](https://t3ratech.github.io/t3rnel-browser-plugin/) extension.
+- [ ] Install the [T3rnel Browser](https://browser.t3ratech.co.zw/) extension.
 - [ ] Activate Pro in the extension (Settings → Get Pro).
 - [ ] Open a tab and log in to a site (e.g. GitHub, Notion, internal dashboard).
 

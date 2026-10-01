@@ -47,7 +47,14 @@ describe("the skill describes the server that actually exists", () => {
     );
     const open = registry.indexOf("[", registry.indexOf("export const BROWSER_TOOL_NAMES"));
     const names = [...registry.slice(open, registry.indexOf("] as const", open)).matchAll(/"([a-z0-9_]+)"/g)];
-    assert.match(skill, new RegExp(`serves ${names.length + 1}\\b`), "the with-extension count is stale");
+    // Registered is not published: the licence-trio tools never reach the MCP
+    // surface, so the served count is the registry minus MCP_INTERNAL_ONLY.
+    const gate = readFileSync(
+      join(root, "..", "..", "browser", "t3rnel-browser", "src", "approval-gate.ts"), "utf8",
+    );
+    const iOpen = gate.indexOf("[", gate.indexOf("export const MCP_INTERNAL_ONLY"));
+    const internal = [...gate.slice(iOpen, gate.indexOf("]);", iOpen)).matchAll(/"([a-z0-9_]+)"/g)];
+    assert.match(skill, new RegExp(`serves ${names.length - internal.length + 1}\\b`), "the with-extension count is stale");
   });
 
   test("tells the agent which tools refuse without the extension", () => {
@@ -90,7 +97,7 @@ describe("the skill describes the server that actually exists", () => {
    * 404s, so linking it would send a reader who followed the instructions to nothing.
    */
   const OUR_LINKS =
-    /^https:\/\/(t3ratech\.github\.io|github\.com\/t3ratech|chromewebstore\.google\.com|microsoftedge\.microsoft\.com|addons\.mozilla\.org)/;
+    /^https:\/\/(browser\.t3ratech\.co\.zw|t3ratech\.github\.io|github\.com\/t3ratech|chromewebstore\.google\.com|microsoftedge\.microsoft\.com|addons\.mozilla\.org)/;
 
   test("points every link at this product", () => {
     for (const url of skill.match(/https?:\/\/[^\s<>)"]+/g) ?? []) {
@@ -106,8 +113,7 @@ describe("the skill describes the server that actually exists", () => {
    */
   test("carries an install path a reader with nothing installed can follow", () => {
     for (const step of [
-      "npm install -g @t3ratech/mcp-session-bridge",
-      "mcp-session-bridge --install",
+      "@t3ratech/mcp-session-bridge",
       "https://chromewebstore.google.com/detail/",
       "https://addons.mozilla.org/en-US/firefox/addon/t3rnel-browser/",
     ]) {
@@ -180,7 +186,7 @@ describe("every skill in this repository", () => {
   });
 
   test("every link points at something of ours or a site the skill is about", () => {
-    const allowed = /^https?:\/\/(t3ratech\.github\.io|github\.com|smithery\.ai|glama\.ai|mcpservers\.org|news\.ycombinator\.com|hn\.algolia\.com|www\.npmjs\.com|chromewebstore\.google\.com|microsoftedge\.microsoft\.com|addons\.mozilla\.org)/;
+    const allowed = /^https?:\/\/(browser\.t3ratech\.co\.zw|t3ratech\.github\.io|github\.com|smithery\.ai|glama\.ai|mcpservers\.org|news\.ycombinator\.com|hn\.algolia\.com|www\.npmjs\.com|chromewebstore\.google\.com|microsoftedge\.microsoft\.com|addons\.mozilla\.org)/;
     for (const [name, text] of Object.entries(skillText)) {
       for (const url of text.match(/https?:\/\/[^\s<>)"`]+/g) ?? []) {
         assert.match(url, allowed, `${name} links to ${url}, which is neither ours nor a site it documents`);
@@ -227,5 +233,29 @@ describe("every skill in this repository", () => {
         `${name} does not say how to tell a submission from a silent failure`,
       );
     }
+  });
+});
+
+/**
+ * The README is the first page npm and GitHub show, and it restated the served count in
+ * prose — 95 extension tools, 96 with `session_install` — two registry changes after both
+ * stopped being true. The npm description and the skill were pinned; the README was not,
+ * so it was the one that drifted.
+ */
+describe("the README states the counts the server serves", () => {
+  test("extension and bridge-listing counts match the registry", () => {
+    const readme = readFileSync(join(root, "README.md"), "utf8");
+    const registry = readFileSync(join(root, "..", "..", "browser", "t3rnel-browser", "src", "browser-tools.ts"), "utf8");
+    const open = registry.indexOf("[", registry.indexOf("export const BROWSER_TOOL_NAMES"));
+    const names = [...registry.slice(open, registry.indexOf("] as const", open)).matchAll(/"([a-z0-9_]+)"/g)];
+    const gate = readFileSync(join(root, "..", "..", "browser", "t3rnel-browser", "src", "approval-gate.ts"), "utf8");
+    const iOpen = gate.indexOf("[", gate.indexOf("export const MCP_INTERNAL_ONLY"));
+    const internal = [...gate.slice(iOpen, gate.indexOf("]);", iOpen)).matchAll(/"([a-z0-9_]+)"/g)];
+    const extension = names.length - internal.length;
+    assert.match(readme, new RegExp(`exposes ${extension} browser tools\\b`), `the README does not say the extension exposes ${extension}`);
+    assert.match(readme, new RegExp(`listing to ${extension + 1}\\b`), `the README does not say the bridge lists ${extension + 1}`);
+    // Some MCP clients refuse a server listing more than 100 tools. The README promises
+    // the count stays under it, so the promise is a test, not a hope.
+    assert.ok(extension + 1 <= 100, `the bridge lists ${extension + 1} tools, over the 100-tool client limit the README promises to stay under`);
   });
 });

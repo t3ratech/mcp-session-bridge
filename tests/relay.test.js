@@ -346,7 +346,9 @@ describe("the host as Chrome spawns it", () => {
   // The host path and `__dirname` are defined once at the top of this file; the merged
   // section below used to carry its own identical copy.
 
-  function waitFor(predicate, timeoutMs = 5000) {
+  // A budget for a spawned host to start, not an assertion: cold starts under memory
+  // pressure (the headed suite running alongside) exceeded 5s.
+  function waitFor(predicate, timeoutMs = 15000) {
     return new Promise((resolve, reject) => {
       const started = Date.now();
       const poll = () => {

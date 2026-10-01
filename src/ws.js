@@ -35,12 +35,23 @@ export function connectWebSocket(url, { timeoutMs = 10000, onMessage = () => {},
   if (target.protocol !== "ws:") throw new Error(`Only ws:// URLs are supported, got ${target.protocol}`);
   const host = target.hostname;
   const port = Number(target.port) || 80;
-  const path = `${target.pathname}${target.search}` || "/";
+  // A parsed URL's pathname is never empty — "ws://host" parses to "/".
+  const path = `${target.pathname}${target.search}`;
 
   return new Promise((resolve, reject) => {
     const socket = net.createConnection({ host, port });
     const key = randomBytes(16).toString("base64");
     let buffer = Buffer.alloc(0);
+    /**
+     * Chunks received but not yet joined, and how many bytes the parser needs next.
+     *
+     * Concatenating every 64 KiB chunk onto the whole buffer made a large message
+     * quadratic: a 33 MiB message took eleven seconds of copying before the cap check
+     * could even run. Chunks now wait here until enough bytes for the next step arrive.
+     */
+    const waiting = [];
+    let waitingBytes = 0;
+    let needed = 1;
     let handshaken = false;
     let closed = false;
     const fragments = [];
@@ -110,18 +121,18 @@ export function connectWebSocket(url, { timeoutMs = 10000, onMessage = () => {},
 
     function parseFrames() {
       for (;;) {
-        if (buffer.length < 2) return;
+        if (buffer.length < 2) { needed = 2; return; }
         const fin = (buffer[0] & 0x80) !== 0;
         const opcode = buffer[0] & 0x0f;
         const masked = (buffer[1] & 0x80) !== 0;
         let length = buffer[1] & 0x7f;
         let offset = 2;
         if (length === 126) {
-          if (buffer.length < 4) return;
+          if (buffer.length < 4) { needed = 4; return; }
           length = buffer.readUInt16BE(2);
           offset = 4;
         } else if (length === 127) {
-          if (buffer.length < 10) return;
+          if (buffer.length < 10) { needed = 10; return; }
           const big = buffer.readBigUInt64BE(2);
           if (big > BigInt(MAX_MESSAGE_BYTES)) {
             fail(new Error("WebSocket frame exceeds the 64 MiB cap"));
@@ -132,7 +143,7 @@ export function connectWebSocket(url, { timeoutMs = 10000, onMessage = () => {},
         }
         const maskOffset = offset;
         if (masked) offset += 4;
-        if (buffer.length < offset + length) return;
+        if (buffer.length < offset + length) { needed = offset + length; return; }
         let payload = buffer.subarray(offset, offset + length);
         if (masked) {
           const unmasked = Buffer.alloc(length);
@@ -145,7 +156,12 @@ export function connectWebSocket(url, { timeoutMs = 10000, onMessage = () => {},
     }
 
     socket.on("data", (chunk) => {
-      buffer = Buffer.concat([buffer, chunk]);
+      waiting.push(chunk);
+      waitingBytes += chunk.length;
+      if (handshaken && buffer.length + waitingBytes < needed) return;
+      buffer = Buffer.concat([buffer, ...waiting]);
+      waiting.length = 0;
+      waitingBytes = 0;
       if (!handshaken) {
         const end = buffer.indexOf("\r\n\r\n");
         if (end === -1) return;
@@ -176,8 +192,11 @@ export function connectWebSocket(url, { timeoutMs = 10000, onMessage = () => {},
           send: (text) => sendFrame(0x1, Buffer.from(text, "utf8")),
           close: () => {
             if (closed) return;
-            closed = true;
+            // Send the frame before flagging closed — sendFrame refuses to write
+            // on a socket already marked closed, so flagging first silently
+            // skipped the close handshake and the peer only ever saw a FIN.
             sendFrame(0x8, Buffer.alloc(0));
+            closed = true;
             socket.end();
             onClose();
           },

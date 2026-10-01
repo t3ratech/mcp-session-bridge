@@ -26,12 +26,12 @@ const MAX_PENDING = 1024;
 
 const log = (line) => process.stderr.write(`mcp-session-bridge-host: ${line}\n`);
 
-function fail(message) {
-  log(message);
-  process.exit(1);
-}
-
 export function startNativeHost({ socketPath = resolveSocketPath(), input = process.stdin, output = process.stdout, onExit = (code) => process.exit(code) } = {}) {
+  /** Every fatal path ends through `onExit`, so an embedding caller or a test sees it. */
+  function fail(message) {
+    log(message);
+    onExit(1);
+  }
   const toChrome = (message) => output.write(encodeFrame(message));
 
   const connections = new Map();
@@ -119,7 +119,12 @@ export function startNativeHost({ socketPath = resolveSocketPath(), input = proc
     // A stale socket file survives a crashed host; a live one means a second
     // Chrome profile is racing us, which must not silently half-serve.
     const probe = net.createConnection({ path: socketPath });
-    probe.on("connect", () => fail(`Another session bridge already owns ${socketPath}`));
+    probe.on("connect", () => {
+      // The probe has answered its question; holding it open would keep the other
+      // host's connection count up and this process alive after it has given up.
+      probe.destroy();
+      fail(`Another session bridge already owns ${socketPath}`);
+    });
     probe.on("error", () => {
       unlinkSync(socketPath);
       listen();
@@ -148,17 +153,18 @@ export function startNativeHost({ socketPath = resolveSocketPath(), input = proc
   function shutdown(code) {
     if (shuttingDown) return;
     shuttingDown = true;
+    process.off("SIGTERM", onSignal);
+    process.off("SIGINT", onSignal);
     for (const socket of connections.values()) socket.destroy();
-    server.close(() => {
-      if (platform() !== "win32" && existsSync(socketPath)) unlinkSync(socketPath);
-      onExit(code);
-    });
+    // Closing a Unix-socket server removes its socket file; there is nothing to unlink.
+    server.close(() => onExit(code));
   }
 
+  const onSignal = () => shutdown(0);
   input.on("end", () => shutdown(0));
   input.on("error", () => shutdown(1));
-  process.on("SIGTERM", () => shutdown(0));
-  process.on("SIGINT", () => shutdown(0));
+  process.on("SIGTERM", onSignal);
+  process.on("SIGINT", onSignal);
 
   return { server, connections, pending, shutdown };
 }

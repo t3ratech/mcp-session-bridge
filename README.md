@@ -8,7 +8,7 @@ A free MCP (Model Context Protocol) server that exposes **authenticated browser-
 
 - Serves MCP over stdio (newline-delimited JSON-RPC) to any client that speaks the Model Context Protocol. The setup guide covers the common ones.
 - Uses a dual-transport design:
-  - **Extension mode (free; Pro tools gated by the extension)** — forwards calls over a local, owner-only relay socket to a native messaging host that Chrome spawns, and from there to the T3rnel Browser extension, which executes them against the live authenticated tabs.
+  - **Extension mode (free; Pro tools gated by the extension)** — since 1.3.0 the bridge serves a loopback WebSocket the extension's service worker dials out to, so `npx @t3ratech/mcp-session-bridge` is the whole setup: no global install, no `--install`, no native host manifest. The first connection asks once in the extension panel, permanently. The pre-1.3 path — relay socket to a native messaging host Chrome spawns — remains as a fallback for hosts registered by older installs.
   - **Standalone mode (free)** — launches its own headful or headless CDP browser on a persistent profile and drives it directly. No license, no extension, and no access to the user's everyday browser.
 - Returns structured page context, form values, snapshots, and screenshots without shipping session cookies to a remote browser.
 
@@ -18,20 +18,21 @@ The bridge itself is free, and this package enforces no licence of its own.
 
 Extension mode reaches the buyer's real authenticated session through the T3rnel Browser
 extension, and the Pro tools it exposes are gated by that extension's own Pro tier —
-$29.99 once, three devices. Standalone mode is free and needs neither the extension nor a
+a one-time payment for three devices, priced by WavePay and shown in the extension. Standalone mode is free and needs neither the extension nor a
 licence. There is no separate subscription for this package, and nothing here checks for
 one; earlier drafts of this file advertised $9/mo and $39/mo tiers that were never
 implemented, never enforced and never purchasable.
 
 ## Project layout
 
-- `src/server.js` — MCP stdio server: tool surface, schema validation, dual-transport routing, relay client with reconnect and timeouts, and standalone CDP launcher.
+- `src/server.js` — MCP stdio server: tool surface, schema validation, dual-transport routing, loopback WebSocket endpoint, relay client with reconnect and timeouts, and standalone CDP launcher.
 - `src/cdp.js` — standalone CDP browser management and WebSocket client.
-- `src/native-host.js` — native messaging host spawned by Chrome; owns the relay socket and multiplexes concurrent MCP servers.
+- `src/ws-server.js` — the loopback WebSocket endpoint extension mode dials out to (1.3.0+).
+- `src/native-host.js` — legacy path: native messaging host spawned by Chrome; owns the relay socket and multiplexes concurrent MCP servers.
 - `src/framing.js` — the 4-byte length-prefixed JSON framing shared by native messaging and the relay socket.
 - `src/tools.js` — the `session_*` tool definitions, validation, and mapping to the extension's `browser_*` tools.
 - `src/license.js` — offline Ed25519 license verification helpers used by the extension and tests.
-- `src/install.js` — `--install` / `--uninstall` native host registration for Chrome, Chromium, Brave and Edge.
+- `src/install.js` — `--install` / `--uninstall` native host registration for Chrome, Chromium, Brave and Edge (legacy transport only — not needed for 1.3.0+).
 - `docs/setup-guide.md` — installing on the common MCP clients, plus verification and troubleshooting.
 - `docs/chrome-validation-checklist.md` — end-to-end validation steps for Chrome with the T3rnel Browser extension.
 - `ads/` — `ad-copy.md`, the shared headline and description copy used when submitting to MCPize, Smithery, mcp.so and PulseMCP.
@@ -45,8 +46,10 @@ API, so both are partly supported; the extension's manifest generator states whi
 capabilities are absent on each. Standalone mode has no browser requirement at all — it
 launches its own CDP browser.
 
-The extension exposes 99 browser tools, all of which are reachable over this bridge
-subject to the extension's own Pro gating and its approval gate.
+The extension exposes 97 browser tools over this bridge — the full surface minus three
+licence-maintenance tools that stay panel-only — subject to the extension's own Pro
+gating. The count stays under the 100-tool limit some MCP clients enforce, and
+`session_install` (setup instructions) brings the bridge's own listing to 98.
 
 ## Supported clients
 
@@ -75,7 +78,11 @@ subject to the extension's own Pro gating and its approval gate.
 
 The bridge works best with the T3rnel Browser extension, which lets your AI drive the browser you are already signed into:
 
-<https://t3ratech.github.io/t3rnel-browser-plugin/>
+<https://browser.t3ratech.co.zw/>
+
+Every `session_*` error that reports the extension missing — on any tool that genuinely
+needs it — carries this link. Standalone-capable tools never nag: they just work
+without the extension.
 
 ## Where this is listed
 

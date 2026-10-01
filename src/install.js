@@ -97,7 +97,7 @@ function writeWindowsLauncher(dir, hostPath) {
  * Windows finds a native messaging host through the registry, not a well-known directory.
  * Each browser reads its own key, and the default value is the path to the manifest.
  */
-function registerWindowsHost(manifestPath) {
+function registerWindowsHost(manifestPath, exec) {
   const keys = [
     "HKCU\\Software\\Google\\Chrome\\NativeMessagingHosts",
     "HKCU\\Software\\Chromium\\NativeMessagingHosts",
@@ -108,7 +108,7 @@ function registerWindowsHost(manifestPath) {
   for (const key of keys) {
     const full = `${key}\\${HOST_NAME}`;
     try {
-      execFileSync("reg", ["add", full, "/ve", "/t", "REG_SZ", "/d", manifestPath, "/f"], { stdio: "ignore" });
+      exec("reg", ["add", full, "/ve", "/t", "REG_SZ", "/d", manifestPath, "/f"], { stdio: "ignore" });
       registered.push(full);
     } catch (error) {
       // A browser that is not installed has no parent key, and `reg add` creates it, so a
@@ -119,7 +119,8 @@ function registerWindowsHost(manifestPath) {
   return registered;
 }
 
-export function installHosts({ hostPath = defaultHostPath(), dirs = nativeHostDirs(), os = platform() } = {}) {
+/** `exec` runs `reg.exe` on Windows; injected so the registry path is testable anywhere. */
+export function installHosts({ hostPath = defaultHostPath(), dirs = nativeHostDirs(), os = platform(), exec = execFileSync } = {}) {
   if (!existsSync(hostPath)) {
     throw new Error(`Native host entry point does not exist: ${hostPath}`);
   }
@@ -139,7 +140,7 @@ export function installHosts({ hostPath = defaultHostPath(), dirs = nativeHostDi
     const executable = os === "win32" ? writeWindowsLauncher(dir, hostPath) : hostPath;
     writeFileSync(manifestPath, `${JSON.stringify(buildHostManifest(executable), null, 2)}\n`);
     written.push(manifestPath);
-    if (os === "win32") written.push(...registerWindowsHost(manifestPath));
+    if (os === "win32") written.push(...registerWindowsHost(manifestPath, exec));
   }
   return written;
 }
@@ -156,20 +157,14 @@ export function uninstallHosts({ dirs = nativeHostDirs() } = {}) {
   return removed;
 }
 
-export function printInstallSummary(written, hostPath, out = console.log) {
-  if (written.length === 0) {
-    out("Windows: native hosts register via the registry, not the file system.");
-    out(`Create HKCU\\Software\\Google\\Chrome\\NativeMessagingHosts\\${HOST_NAME} with default value pointing at a manifest containing:`);
-    out(JSON.stringify(buildHostManifest(hostPath), null, 2));
-    return;
-  }
+export function printInstallSummary(written, out = console.log) {
   for (const path of written) {
     out(`Installed native messaging host: ${path}`);
   }
   out("");
   out("Next steps:");
   out("  1. Install the T3rnel Browser extension:");
-  out("     https://t3ratech.github.io/t3rnel-browser-plugin/");
+  out("     https://browser.t3ratech.co.zw/");
   out("  2. Add this server to your MCP client config (Claude Code/Desktop, Cursor, VS Code, Windsurf, Antigravity, IntelliJ, Codex, Grok Build, Kimi Code/Desktop, JCode, Cline, OpenCode, Continue.dev, KiloCode, Roo Code, Aider, OpenClaw, Hermes, OpenFang and any MCP client):");
   out(JSON.stringify({
     mcpServers: {

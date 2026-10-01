@@ -1,7 +1,7 @@
 ---
 name: publish-mcp-server
 description: List an MCP server on the public directories — Smithery, Glama, mcpservers.org and awesome-mcp-servers — by driving a signed-in browser. Use when a new MCP server is ready to announce, when an existing listing needs updating after a release, or when a directory submission was filled in and did not go through. Covers the per-site field limits, the required controls that are easy to miss, and the paid options to leave alone.
-metadata: { "homepage": "https://t3ratech.github.io/t3rnel-browser-plugin/", "mcp": "t3ratech-dev/mcp-session-bridge" }
+metadata: { "homepage": "https://browser.t3ratech.co.zw/", "mcp": "t3ratech-dev/mcp-session-bridge" }
 ---
 
 # Listing an MCP server on the public directories

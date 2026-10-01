@@ -50,7 +50,19 @@ function extensionToolCount() {
   const close = source.indexOf("] as const", open);
   const names = [...source.slice(open + 1, close).matchAll(/"([a-z0-9_]+)"/g)].map((m) => m[1]);
   if (names.length === 0) throw new Error("build-mcpb: the extension registry parsed to zero tools");
-  return names.length;
+  /**
+   * Registered is not the same as published: the licence-trio tools run inside
+   * the extension but are withheld from the MCP surface, so counting them here
+   * advertises tools a caller can never reach.
+   */
+  const gate = readFileSync(
+    join(repoRoot, "products", "browser", "t3rnel-browser", "src", "approval-gate.ts"), "utf8"
+  );
+  const iStart = gate.indexOf("export const MCP_INTERNAL_ONLY");
+  const iOpen = gate.indexOf("[", iStart);
+  const iClose = gate.indexOf("]);", iOpen);
+  const internal = [...gate.slice(iOpen, iClose).matchAll(/"([a-z0-9_]+)"/g)].map((m) => m[1]);
+  return names.length - internal.length;
 }
 
 /**
@@ -67,10 +79,18 @@ function assertNoExternalDependencies() {
         "Either vendor them into server/ or stop depending on them."
     );
   }
-  const sources = execFileSync("grep", ["-rhoE", 'from "[^."][^"]*"', join(root, "src")], { encoding: "utf8" });
-  const external = [...new Set(sources.match(/from "([^"]+)"/g) ?? [])]
-    .map((m) => m.slice(6, -1))
-    .filter((name) => !name.startsWith("node:"));
+  // Statement-level match only — a bare `from "..."` grep also catches prose
+  // inside comments and strings ("tell X from Y" quoted phrases), which is how
+  // a ws-server comment once broke the release build.
+  const sources = execFileSync(
+    "grep",
+    ["-rhoE", '(import|export)[^;]*from[[:space:]]+"[^"]+"|require\("[^"]+"\)|^[[:space:]]*import[[:space:]]+"[^"]+"', join(root, "src")],
+    { encoding: "utf8" },
+  );
+  const specifiers = [...sources.matchAll(/(?:from|require\()\s*"([^"]+)"/g)].map((m) => m[1])
+    .concat([...sources.matchAll(/^\s*import\s+"([^"]+)"/gm)].map((m) => m[1]));
+  const external = [...new Set(specifiers)]
+    .filter((name) => !name.startsWith("node:") && !name.startsWith("."));
   if (external.length > 0) {
     throw new Error(`build-mcpb: src imports ${external.join(", ")}, which the bundle does not ship.`);
   }
@@ -93,8 +113,8 @@ export function buildManifest() {
       "Most browser automation starts from a cold, empty profile: no cookies, no session, " +
       "no access to anything behind a login. This one attaches to the browser you are " +
       "already using.\n\n" +
-      "The bridge is a stdio MCP server. It talks to the free T3rnel Browser extension " +
-      "over a native-messaging relay, so every tool runs in your own signed-in tabs — the " +
+      "The bridge is a stdio MCP server. The free T3rnel Browser extension dials out " +
+      "to its loopback WebSocket, so every tool runs in your own signed-in tabs — the " +
       "dashboard you are already authenticated to, the ticket you already have open, the " +
       "internal tool that would take an hour to script a login for.\n\n" +
       `On its own the bridge serves ${standalone} tools against a standalone automation ` +

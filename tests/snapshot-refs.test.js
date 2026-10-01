@@ -57,7 +57,10 @@ describe("a ref that cannot be resolved is refused by name", () => {
     const server = spawn("node", [join(root, "src", "server.js")], {
       stdio: ["pipe", "pipe", "pipe"],
       // No relay socket under this HOME, so the bridge cannot reach an extension.
-      env: { ...process.env, HOME: home, USERPROFILE: home, T3RNEL_SESSION_MODE: "extension" },
+      // Outside the extension's scan range (17311–17318): a bridge bound there is found and
+      // dialled by the developer's real browser, which logs a refused WebSocket once the
+      // test exits — seen on the owner's chrome://extensions page as port 17317.
+      env: { ...process.env, HOME: home, USERPROFILE: home, T3RNEL_SESSION_MODE: "extension", T3RNEL_SESSION_PORT: String(37311 + (process.pid % 1000)) },
     });
     const replies = [];
     const done = new Promise((resolveDone) => {
@@ -144,7 +147,11 @@ describe("a dropdown can be chosen in standalone mode, not only through the exte
     }
     assert.ok(select.inputSchema.properties.ref, "session_select does not take a snapshot ref");
     assert.ok(select.inputSchema.properties.tabId, "session_select cannot be aimed at a tab");
-    assert.deepEqual(select.inputSchema.required, ["selector"]);
+    // It needs an element and either name for one will do. This line used to pin
+    // `required: ["selector"]`, which is what made a ref-only select unsendable by any
+    // schema-validating client; element-targeting.test.js drives the fixed contract live.
+    assert.deepEqual(select.inputSchema.requireOneOf, ["selector", "ref"]);
+    assert.ok(!(select.inputSchema.required ?? []).includes("selector"), "selector is required again, so a ref alone is refused");
   });
 
   test("says plainly that filling a select does not work, which is the mistake it prevents", () => {

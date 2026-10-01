@@ -2,6 +2,28 @@
 
 All notable changes to the bridge. Newest first.
 
+## 1.3.0 — 2026-10-01
+
+### Added
+- **No-install transport.** The MCP client starts the bridge with `npx @t3ratech/mcp-session-bridge`; the bridge listens on a loopback WebSocket (ports 17311–17318) and the T3rnel Browser 1.3.0 extension finds it by itself. No global install, no `--install`, no native-messaging manifest. The first connection is paired automatically while AI/MCP automation is allowed (the extension's default); an armed approval gate asks once instead. Native messaging still works for older extension builds.
+
+### Fixed
+- **Click, fill, type and select by snapshot ref over MCP.** The published schemas required `selector` while describing `ref` as its alternative, so a schema-validating client could never send a ref alone; they now require one of the two. In standalone mode a ref from `session_snapshot` was also refused as "No snapshot to resolve" one call later — standalone refs now resolve in the page itself.
+- **Selectors containing double quotes** (`input[name="q"]`) no longer break the standalone page script with a `SyntaxError`; a quoted selector that matches nothing is refused as "Element not found".
+- **Declared bounds are enforced.** `pattern`, `minimum` and `maximum` in every tool schema are now checked, so a malformed `ref` is refused before it reaches a page script.
+- **A client that listed tools before the extension connected is told when it does.** The server declares `tools.listChanged` and sends `notifications/tools/list_changed` once the extension's tools become available; a sleeping service worker waking again does not re-announce.
+- **SIGTERM, SIGINT and SIGHUP close the standalone browser.** Stopping the bridge with a signal used to leave its browser running.
+- Published counts corrected: 14 tools standalone, 98 with the extension.
+- **The tool list stays installable with older extensions.** The 100-tool ceiling from 1.2.1 is carried forward: an extension that publishes 100 tools (1.2.0) plus `session_install` would list 101, which Google Antigravity refuses, so `session_md_diff` and `session_check_spelling` are left unlisted (still callable by name) whenever the merged list would exceed 100.
+- Product links point at `https://browser.t3ratech.co.zw/`, the address the old GitHub Pages URL redirects to.
+
+## 1.2.1 — 2026-09-28
+
+### Fixed
+- `tools/list` is capped at 100 entries so Google Antigravity can install the bridge alongside extension builds that publish 100 tools.
+- `session_navigate` accepts `background: true`, opening or updating a tab without taking the user's focus.
+- Product links point at `https://browser.t3ratech.co.zw/`.
+
 ## 1.2.0 — 2026-09-02
 
 ### Changed

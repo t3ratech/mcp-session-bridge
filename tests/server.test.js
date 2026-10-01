@@ -11,7 +11,12 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const serverPath = join(__dirname, "..", "src", "server.js");
 const hostPath = join(__dirname, "..", "src", "native-host.js");
 
-function nextLine(stream, timeoutMs = 2000) {
+/**
+ * Two seconds was enough on an idle machine and is not on a loaded one: the same
+ * spawn-and-reply the suite passes in ~700ms quiet took over 2s inside the full
+ * run, and the failure read as a server hang when the server was just starved.
+ */
+function nextLine(stream, timeoutMs = 15_000) {
   return new Promise((resolve, reject) => {
     let timer;
     const onData = (data) => {
@@ -50,7 +55,11 @@ function spawnServer(env = {}) {
   tempDirs.add(dir);
   const socketPath = join(dir, "bridge.sock");
   const envWithSocket = env.T3RNEL_SESSION_SOCKET ? env : { ...env, T3RNEL_SESSION_SOCKET: socketPath };
-  return trackedSpawn("node", [serverPath], { cwd: join(__dirname, ".."), env: { ...process.env, ...envWithSocket } }, activeProcs);
+  // The sleep-window marker lives under the real home — tests that inherit it
+  // would pay a 28s "extension is asleep" wait for a browser that was running
+  // on the host machine minutes ago, so every spawned server gets a fresh one.
+  const envWithHome = envWithSocket.HOME ? envWithSocket : { ...envWithSocket, HOME: dir };
+  return trackedSpawn("node", [serverPath], { cwd: join(__dirname, ".."), env: { ...process.env, ...envWithHome } }, activeProcs);
 }
 
 function spawnHost(env = {}) {
@@ -432,15 +441,20 @@ describe("end to end through the native host and relay socket", () => {
     const text = response.result.content[0].text;
 
     // And the text has to be something a person can act on, not a status line.
-    assert.match(text, /t3ratech\.github\.io/, "names where to get the extension");
-    assert.match(text, /mcp-session-bridge --install/, "names the command that registers the host");
+    assert.match(text, /browser\.t3ratech\.co\.zw/, "names where to get the extension");
+    assert.match(text, /npx -y @t3ratech\/mcp-session-bridge/, "names the no-install launch command");
+    // The default path is zero-approval; the card exists only when the gate is armed.
+    // Naming the card without that condition would tell a reader to wait for a prompt
+    // that never comes.
+    assert.match(text, /pairs the bridge automatically/, "does not say pairing is automatic under the default");
+    assert.match(text, /approval gate is armed/, "does not say when the pairing card still appears");
     assert.match(text, /T3RNEL_SESSION_MODE=standalone/, "names the no-extension fallback");
     assert.match(text, /Claude Code\/Desktop/, "names the clients it works with");
 
     // The machine-readable copy travels with it, so an agent can branch on it.
     const details = JSON.parse(text.slice(text.indexOf("{")));
     assert.strictEqual(details.canInstall, true);
-    assert.match(details.storeUrl, /t3ratech\.github\.io/);
+    assert.match(details.storeUrl, /browser\.t3ratech\.co\.zw/);
     assert.match(details.freeStandaloneOption.how, /standalone/);
 
     proc.kill();

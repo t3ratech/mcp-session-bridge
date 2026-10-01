@@ -65,7 +65,13 @@ describe("the MCPB manifest describes the server that is actually shipped", () =
     const open = registry.indexOf("[", registry.indexOf("export const BROWSER_TOOL_NAMES"));
     const names = [...registry.slice(open, registry.indexOf("] as const", open)).matchAll(/"([a-z0-9_]+)"/g)];
     assert.ok(names.length > 50, "the extension registry parsed to an implausible count");
-    assert.match(manifest.long_description, new RegExp(`serves ${names.length + 1}\\b`));
+    const gate = readFileSync(
+      join(root, "..", "..", "browser", "t3rnel-browser", "src", "approval-gate.ts"), "utf8",
+    );
+    const iOpen = gate.indexOf("[", gate.indexOf("export const MCP_INTERNAL_ONLY"));
+    const internal = [...gate.slice(iOpen, gate.indexOf("]);", iOpen)).matchAll(/"([a-z0-9_]+)"/g)];
+    const published = names.length - internal.length + 1; // +1 for session_install
+    assert.match(manifest.long_description, new RegExp(`serves ${published}\\b`));
   });
 
   test("the npm description states the same counts as the manifest", () => {
@@ -77,6 +83,12 @@ describe("the MCPB manifest describes the server that is actually shipped", () =
     );
     const open = registry.indexOf("[", registry.indexOf("export const BROWSER_TOOL_NAMES"));
     const names = [...registry.slice(open, registry.indexOf("] as const", open)).matchAll(/"([a-z0-9_]+)"/g)];
+    const gate = readFileSync(
+      join(root, "..", "..", "browser", "t3rnel-browser", "src", "approval-gate.ts"), "utf8",
+    );
+    const iOpen = gate.indexOf("[", gate.indexOf("export const MCP_INTERNAL_ONLY"));
+    const internal = [...gate.slice(iOpen, gate.indexOf("]);", iOpen)).matchAll(/"([a-z0-9_]+)"/g)];
+    const published = names.length - internal.length + 1;
     assert.match(
       pkg.description,
       new RegExp(`\\b${STANDALONE_TOOLS.length} tools on its own\\b`),
@@ -84,8 +96,8 @@ describe("the MCPB manifest describes the server that is actually shipped", () =
     );
     assert.match(
       pkg.description,
-      new RegExp(`\\b${names.length + 1} with the extension\\b`),
-      `the npm description does not state ${names.length + 1} tools with the extension`,
+      new RegExp(`\\b${published} with the extension\\b`),
+      `the npm description does not state ${published} tools with the extension`,
     );
   });
 
@@ -106,7 +118,7 @@ describe("the MCPB manifest describes the server that is actually shipped", () =
 
   test("points every link at a page that is part of this product", () => {
     for (const url of [manifest.homepage, manifest.documentation, manifest.support, ...manifest.privacy_policies]) {
-      assert.match(url, /^https:\/\/(t3ratech\.github\.io|github\.com\/t3ratech)/, `${url} is not one of ours`);
+      assert.match(url, /^https:\/\/(browser\.t3ratech\.co\.zw|t3ratech\.github\.io|github\.com\/t3ratech)/, `${url} is not one of ours`);
     }
   });
 
