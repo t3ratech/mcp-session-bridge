@@ -80,6 +80,40 @@ Google Antigravity refuses to install it — so the bridge then leaves `session_
 - OpenFang
 - Any client that speaks MCP stdio
 
+## Questions
+
+### What is the MCP Session Bridge?
+
+It is a free MCP server that lets an AI agent drive the browser you are already signed into: `session_*` tools that run in your own Chrome profile and real logged-in session, which cloud browser APIs cannot do. It serves MCP over stdio to any client that speaks it.
+
+### How do I install it?
+
+Add it to your MCP client with command `npx` and args `-y @t3ratech/mcp-session-bridge`. Since 1.3.0 that is the whole setup: no global install, no `--install`, no native-host manifest. The T3rnel Browser extension finds the bridge on its own over a loopback WebSocket.
+
+### Is it free?
+
+Yes. The bridge is free and this package enforces no licence of its own. Extension mode exposes the T3rnel Browser extension's tools, and the Pro ones are gated by that extension's own one-time Pro tier. Standalone mode is free and needs neither the extension nor a licence.
+
+### Does it work without the extension?
+
+Yes. Standalone mode launches its own CDP browser on a persistent profile and drives it directly. It has no access to your everyday browser; extension mode is what reaches your real, signed-in session.
+
+### Is it safe to give an agent my logged-in browser?
+
+The bridge listens on 127.0.0.1 only, so nothing on your network can reach it. Whether the agent must ask before acting is the extension's approval gate: it ships off and can be armed in the extension's Settings so page-changing tools ask first. See the extension's FAQ for the risk class of every tool.
+
+### Which MCP clients does it work with?
+
+Claude Code and Claude Desktop, Cursor, VS Code, Windsurf, Antigravity, IntelliJ, Codex, Grok Build, Kimi Code and Desktop, JCode, Cline, OpenCode, Continue.dev, KiloCode, Roo Code, Aider, OpenClaw, Hermes, OpenFang, and any client that speaks MCP over stdio.
+
+### How many tools does it expose?
+
+The extension exposes 97 browser tools over this bridge, and `session_install` brings the bridge's own listing to 98 — under the 100-tool limit some clients enforce.
+
+### Which browsers are supported?
+
+Chrome, Brave, Edge and Chromium fully; Opera (no side-panel API), Firefox (no debugger API) and Safari partly. Standalone mode has no browser requirement.
+
 ## Install the T3rnel Browser extension
 
 The bridge works best with the T3rnel Browser extension, which lets your AI drive the browser you are already signed into:
