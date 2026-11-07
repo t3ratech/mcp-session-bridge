@@ -2,6 +2,12 @@
 
 All notable changes to the bridge. Newest first.
 
+## 1.4.0 — 2026-11-07
+
+### Changed
+- **No bridge code changed.** The version moves with T3rnel Browser 1.4.0, whose tools need a signed-in account. The bridge returns whatever the extension answers: `[Sign-in Required]` when nobody is signed in, `[Pro Required]` for a Pro tool on a free account or when a free account has used its three uses for the month. Standalone mode is unaffected.
+- **1.3.0 reaches npm for the first time.** The 1.3.0 release (loopback WebSocket transport, ref-only targeting, enforced schema bounds, `tools.listChanged`) was never published; the latest npm version before this one is 1.2.1, so everything listed under 1.3.0 below ships in this release.
+
 ## 1.3.0 — 2026-10-01
 
 ### Added
