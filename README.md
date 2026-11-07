@@ -9,9 +9,10 @@ A free MCP (Model Context Protocol) server that exposes **authenticated browser-
 
 - Serves MCP over stdio (newline-delimited JSON-RPC) to any client that speaks the Model Context Protocol. The setup guide covers the common ones.
 - Uses a dual-transport design:
-  - **Extension mode (free; needs a signed-in extension account, free tools capped at three uses a month, Pro tools gated by the extension)** — since 1.3.0 the bridge serves a loopback WebSocket the extension's service worker dials out to, so `npx @t3ratech/mcp-session-bridge` is the whole setup: no global install, no `--install`, no native host manifest. The first connection asks once in the extension panel, permanently. The pre-1.3 path — relay socket to a native messaging host Chrome spawns — remains as a fallback for hosts registered by older installs.
+  - **Extension mode (free; the browser-control tools need no account, the extension's own tools need a sign-in and have a monthly allowance, Pro tools are gated by the extension)** — since 1.3.0 the bridge serves a loopback WebSocket the extension's service worker dials out to, so `npx @t3ratech/mcp-session-bridge` is the whole setup: no global install, no `--install`, no native host manifest. The first connection asks once in the extension panel, permanently. The pre-1.3 path — relay socket to a native messaging host Chrome spawns — remains as a fallback for hosts registered by older installs.
   - **Standalone mode (free)** — launches its own headful or headless CDP browser on a persistent profile and drives it directly. No license, no extension, and no access to the user's everyday browser.
 - Returns structured page context, form values, snapshots, and screenshots without shipping session cookies to a remote browser.
+- Works with more than one browser at once. When several browsers carry the extension (Chrome and Brave, say), the first call asks each for its tab list with `browser_list_tabs` and keeps using the first that reports a tab, so a browser that sees no windows cannot capture the session; with one browser connected nothing is probed.
 
 ## Price
 
@@ -92,7 +93,7 @@ Add it to your MCP client with command `npx` and args `-y @t3ratech/mcp-session-
 
 ### Is it free?
 
-Yes. The bridge is free and this package enforces no licence of its own. Extension mode exposes the T3rnel Browser extension's tools, and they need a signed-in extension account: a free account gets three uses a month of the free tools, and the Pro tools are gated by that extension's own one-time Pro tier. Standalone mode is free and needs neither the extension nor a licence.
+Yes. The bridge is free and this package enforces no licence of its own. Extension mode exposes the T3rnel Browser extension's tools, and the browser-control tools (navigation, reading, clicking, typing, screenshots, network and console capture, uploads) need no account and are never limited. The extension's own tools need a signed-in extension account: a free account gets three uses a month of the free ones, and the Pro tools are gated by that extension's own one-time Pro tier. Standalone mode is free and needs neither the extension nor a licence.
 
 ### Does it work without the extension?
 

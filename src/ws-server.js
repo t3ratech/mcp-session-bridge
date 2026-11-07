@@ -235,6 +235,7 @@ export async function startExtensionWebSocket({
   clientName = "an MCP client",
   log = (line) => process.stderr.write(`${line}\n`),
   onReadyChange = () => {},
+  probeTimeoutMs = 8000,
 } = {}) {
   const id = bridgeId();
   const pending = new Map();
@@ -248,6 +249,55 @@ export async function startExtensionWebSocket({
   let server;
   let boundPort = 0;
   let onDisconnect = () => {};
+  /** Conn pinned after proving it can enumerate real tabs. */
+  let preferred = 0;
+
+  /**
+   * Which connected browser a call goes to.
+   *
+   * Several browsers can carry the extension at once — Chrome and Brave both do on a
+   * machine that uses both, and a copy that only runs in private windows connects but
+   * sees no windows at all. Sending every call to whichever connected first meant a
+   * browser that could see nothing could win for good. So the first call probes each ready
+   * connection once with `browser_list_tabs` (a browser-control tool: never counted, no
+   * account needed) and pins the first that reports real tabs. The pin holds until that
+   * browser goes away, then the probe runs again. When none reports a tab, the first
+   * connection is used, as before. With one browser connected there is nothing to choose
+   * and nothing is probed, so a single browser, or an extension that predates the probe,
+   * never waits on it. Only a count is logged, never a tab title or address.
+   */
+  async function pickConn() {
+    if (preferred && ready.has(preferred)) return preferred;
+    if (ready.size === 1) return ready.values().next().value;
+    for (const conn of ready) {
+      const target = sessions.get(conn);
+      const requestId = `w${nextId++}`;
+      try {
+        const result = await new Promise((resolve, reject) => {
+          const timer = setTimeout(() => {
+            pending.delete(requestId);
+            reject(new Error("probe timeout"));
+          }, probeTimeoutMs);
+          pending.set(requestId, { conn, resolve, reject, timer });
+          target.send(JSON.stringify({
+            jsonrpc: "2.0", method: "tools/call",
+            params: { name: "browser_list_tabs", arguments: {} },
+            id: requestId,
+          }));
+        });
+        const text = result?.content?.[0]?.text;
+        let tabs;
+        try { tabs = typeof text === "string" ? JSON.parse(text) : result; } catch { tabs = null; }
+        log(`mcp-session-bridge: probe conn ${conn} -> ${Array.isArray(tabs) ? tabs.length : "non-array"} tabs`);
+        if (Array.isArray(tabs) && tabs.length > 0) {
+          preferred = conn;
+          return conn;
+        }
+      } catch (e) { log(`mcp-session-bridge: probe conn ${conn} failed: ${e.message}`); }
+    }
+    preferred = 0;
+    return ready.values().next().value;
+  }
 
   function dropConnection(conn) {
     const wasReady = ready.delete(conn);
@@ -382,8 +432,8 @@ export async function startExtensionWebSocket({
     extensionExpected: () => everReady || extensionSeenRecently(),
     set onDisconnect(callback) { onDisconnect = callback ?? (() => {}); },
     get onDisconnect() { return onDisconnect; },
-    call(payload, timeoutMs = 30000) {
-      const conn = ready.values().next().value;
+    async call(payload, timeoutMs = 30000) {
+      const conn = await pickConn();
       const target = conn === undefined ? undefined : sessions.get(conn);
       if (!target) {
         return Promise.reject(new Error("The extension has not approved this bridge yet"));

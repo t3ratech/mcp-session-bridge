@@ -2,10 +2,18 @@
 
 All notable changes to the bridge. Newest first.
 
+## 1.4.1 — 2026-11-07
+
+### Added
+- **Several browsers at once.** When more than one browser carries the extension, a call no longer goes to whichever connected first. The first call asks each connected browser for its tab list (`browser_list_tabs`, a browser-control tool, so it is never counted and needs no account) and keeps using the first that reports a tab; the choice holds until that browser goes away. A browser that connects but sees no windows — the extension limited to private windows, say — can no longer win the session. With one browser connected nothing is probed, so a single browser, or an extension that predates the probe, never waits on it; when no browser reports a tab the first connection is used, as before. Only a tab count is logged, never a title or an address. `probeTimeoutMs` bounds how long a silent browser is waited for (8 s by default).
+
+### Changed
+- The README states the rule 1.4.0 ships with: the browser-control tools need no account and are never limited; the extension's own tools need a signed-in extension account and have a monthly allowance.
+
 ## 1.4.0 — 2026-11-07
 
 ### Changed
-- **No bridge code changed.** The version moves with T3rnel Browser 1.4.0, whose tools need a signed-in account. The bridge returns whatever the extension answers: `[Sign-in Required]` when nobody is signed in, `[Pro Required]` for a Pro tool on a free account or when a free account has used its three uses for the month. Standalone mode is unaffected.
+- **No bridge code changed.** The version moves with T3rnel Browser 1.4.0, whose tools need a signed-in account. The bridge returns whatever the extension answers: for the extension's own tools, `[Sign-in Required]` when nobody is signed in and `[Pro Required]` for a Pro tool on a free account or when a free account has used its three uses for the month; the browser-control tools need no account. Standalone mode is unaffected.
 - **1.3.0 reaches npm for the first time.** The 1.3.0 release (loopback WebSocket transport, ref-only targeting, enforced schema bounds, `tools.listChanged`) was never published; the latest npm version before this one is 1.2.1, so everything listed under 1.3.0 below ships in this release.
 
 ## 1.3.0 — 2026-10-01
