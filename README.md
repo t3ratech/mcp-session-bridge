@@ -53,7 +53,7 @@ browser.
 The extension exposes 97 browser tools over this bridge — the full surface minus three
 licence-maintenance tools that stay panel-only — subject to the extension's own Pro
 gating. The count stays under the 100-tool limit some MCP clients enforce, and
-`session_install` (setup instructions) brings the bridge's own listing to 98.
+`session_install` (setup instructions) and `session_read_url` (a public page as Markdown) bring the bridge's own listing to 99.
 An older extension that publishes 100 tools would push the merged list past that limit —
 Google Antigravity refuses to install it — so the bridge then leaves `session_md_diff` and
 `session_check_spelling` unlisted. They still run when called by name.
@@ -109,7 +109,13 @@ Claude Code and Claude Desktop, Cursor, VS Code, Windsurf, Antigravity, IntelliJ
 
 ### How many tools does it expose?
 
-The extension exposes 97 browser tools over this bridge, and `session_install` brings the bridge's own listing to 98 — under the 100-tool limit some clients enforce.
+The extension exposes 97 browser tools over this bridge, and `session_install` and `session_read_url` bring the bridge's own listing to 99 — under the 100-tool limit some clients enforce.
+
+The tool list is about 15,000 tokens of every session, so a client that only needs the everyday verbs can list fewer: `T3RNEL_SESSION_TOOLS=core` (or `--tools core`) lists the 24 tools that cover navigating, reading, clicking, typing and screenshots, and `--tools core,network,design` adds those profiles (`network`, `design`, `test`, `vault`, `page`). `all` is the default. A tool that is not listed can still be called by name, and an unknown profile name stops the bridge at startup rather than listing nothing.
+
+### Does the snapshot cost many tokens?
+
+With the extension connected, `session_snapshot` returns one short line per element, `- button "Buy" [@e4]`, which on a 231-element page is about 7,600 characters against about 60,600 for the structured form; `format: "json"` returns the structured form with selectors. Refs from either form work in `session_click`, `session_fill`, `session_type`, `session_select` and `session_press`. The standalone browser always returns the structured form.
 
 ### Which browsers are supported?
 

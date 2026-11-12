@@ -2,6 +2,17 @@
 
 All notable changes to the bridge. Newest first.
 
+## Unreleased
+
+### Added
+- **Tool profiles.** `T3RNEL_SESSION_TOOLS=core,network` or `--tools core,network` lists only those groups of tools (`core`, `network`, `design`, `test`, `vault`, `page`; `core` is always included, `all` is the default). The full list is about 15,000 tokens of every session; `core` is 24 tools. A tool that is not listed can still be called by name, and an unknown profile, `all` mixed with others, or `--tools` with no value stops the bridge at startup.
+- **`session_read_url`**: a public page as Markdown without opening a tab. Asks for `text/markdown` first and converts HTML otherwise; `outline`, `filter` and `llmsTxt` narrow it. Refuses non-http(s), credentials in the URL and any non-public address (checked at connect time and on every redirect). Answered by the bridge in every mode, so 15 tools standalone, 99 with the extension.
+- **`format` on `session_snapshot`** (`compact` or `json`), passed to the extension.
+
+### Changed
+- **Compact snapshot refs.** The extension's default snapshot is now one line per element rather than structured JSON; the bridge reads the `@eN` refs from it, and hands the ref to the extension as the selector.
+- Tool results that are objects are serialised without indentation (standalone mode).
+
 ## 1.4.1 — 2026-11-07
 
 ### Added

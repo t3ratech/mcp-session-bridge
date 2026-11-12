@@ -120,6 +120,7 @@ describe("the standalone browser implements the declared tool surface", () => {
         (tool) =>
           !tool.requiresExtension &&
           tool.name !== "session_install" &&
+          tool.name !== "session_read_url" && // answered by the bridge itself, in every mode
           (!implemented.has(tool.name) || refuses.has(tool.name)),
       ).map((tool) => tool.name);
       assert.deepEqual(

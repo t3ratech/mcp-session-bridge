@@ -225,20 +225,20 @@ describe("standalone tools", () => {
     const tabs = JSON.parse((await executeStandaloneTool(b, "session_list_tabs")).content[0].text);
     assert.deepEqual(tabs, [{ id: 1, title: "One", url: "https://one.test/" }]);
     assert.match((await executeStandaloneTool(b, "session_navigate", { url: "https://two.test/" })).content[0].text, /navigated/);
-    assert.match((await executeStandaloneTool(b, "session_navigate", { url: "https://three.test/", newTab: true })).content[0].text, /"newTab": true/);
+    assert.match((await executeStandaloneTool(b, "session_navigate", { url: "https://three.test/", newTab: true })).content[0].text, /"newTab":true/);
   });
 
   it("select, press, type with and without a target, screenshot as png and clamped jpeg", async () => {
     const cdp = await fakeCdp({ onCommand: evaluating((e) => (e.includes("SELECT") || e.includes("tagName") ? { selected: true, value: "b", text: "B" } : true)) });
     cleanups.push(() => cdp.close());
     const b = await started(cdp);
-    assert.match((await executeStandaloneTool(b, "session_select", { selector: "select", value: "b" })).content[0].text, /"value": "b"/);
+    assert.match((await executeStandaloneTool(b, "session_select", { selector: "select", value: "b" })).content[0].text, /"value":"b"/);
     assert.match((await executeStandaloneTool(b, "session_press", { key: "Enter" })).content[0].text, /pressed/);
     assert.match((await executeStandaloneTool(b, "session_press", { key: "Tab" })).content[0].text, /pressed/);
     await assert.rejects(executeStandaloneTool(b, "session_press", { key: "F13" }), /Unsupported key "F13" — supported: Enter, Tab/);
-    assert.match((await executeStandaloneTool(b, "session_type", { text: "hi" })).content[0].text, /"typed": 2/);
-    assert.match((await executeStandaloneTool(b, "session_type", { ref: "@e1", text: "hi" })).content[0].text, /"typed": 2/);
-    assert.match((await executeStandaloneTool(b, "session_type", {})).content[0].text, /"typed": 0/);
+    assert.match((await executeStandaloneTool(b, "session_type", { text: "hi" })).content[0].text, /"typed":2/);
+    assert.match((await executeStandaloneTool(b, "session_type", { ref: "@e1", text: "hi" })).content[0].text, /"typed":2/);
+    assert.match((await executeStandaloneTool(b, "session_type", {})).content[0].text, /"typed":0/);
     assert.equal((await executeStandaloneTool(b, "session_screenshot", {})).content[0].text, "data:image/png;base64,SHOT-png-none");
     assert.equal((await executeStandaloneTool(b, "session_screenshot", { format: "jpeg", quality: 250 })).content[0].text, "data:image/jpeg;base64,SHOT-jpeg-100");
     assert.equal((await executeStandaloneTool(b, "session_screenshot", { format: "jpeg" })).content[0].text, "data:image/jpeg;base64,SHOT-jpeg-none");
@@ -250,7 +250,7 @@ describe("standalone tools", () => {
     cleanups.push(() => cdp.close());
     const b = await started(cdp);
     assert.equal((await executeStandaloneTool(b, "session_evaluate", { code: "a" })).content[0].text, "plain");
-    assert.equal((await executeStandaloneTool(b, "session_evaluate", { code: "b" })).content[0].text, '{\n  "k": 1\n}');
+    assert.equal((await executeStandaloneTool(b, "session_evaluate", { code: "b" })).content[0].text, '{"k":1}');
     assert.equal((await executeStandaloneTool(b, "session_evaluate", { code: "c" })).content[0].text, "undefined");
   });
 
@@ -264,11 +264,11 @@ describe("standalone tools", () => {
     } });
     cleanups.push(() => cdp.close());
     const b = await started(cdp);
-    assert.match((await executeStandaloneTool(b, "session_wait", { condition: "load", timeoutMs: 2000 })).content[0].text, /"waited": true/);
+    assert.match((await executeStandaloneTool(b, "session_wait", { condition: "load", timeoutMs: 2000 })).content[0].text, /"waited":true/);
     await assert.rejects(executeStandaloneTool(b, "session_wait", { condition: "load", timeoutMs: 30 }), /Timed out after 30ms waiting for load/);
     setTimeout(() => { url = "https://one.test/done"; found = true; }, 250);
     assert.match((await executeStandaloneTool(b, "session_wait", { condition: "url", value: "done", timeoutMs: 3000 })).content[0].text, /done/);
-    assert.match((await executeStandaloneTool(b, "session_wait", { condition: "selector", value: "#x", timeoutMs: 3000 })).content[0].text, /"found": "#x"/);
+    assert.match((await executeStandaloneTool(b, "session_wait", { condition: "selector", value: "#x", timeoutMs: 3000 })).content[0].text, /"found":"#x"/);
     url = "https://one.test/"; found = false;
     await assert.rejects(executeStandaloneTool(b, "session_wait", { condition: "url", value: "never", timeoutMs: 250 }), /waiting for URL containing "never"/);
     await assert.rejects(executeStandaloneTool(b, "session_wait", { condition: "selector", value: "#never", timeoutMs: 250 }), /waiting for selector "#never"/);
@@ -352,13 +352,13 @@ describe("the remaining edges", () => {
     cleanups.push(() => cdp.close());
     const b = await started(cdp);
     assert.match((await executeStandaloneTool(b, "session_read_page", { tabId: 1 })).content[0].text, /hello/);
-    assert.match((await executeStandaloneTool(b, "session_click", { selector: "#go" })).content[0].text, /"clicked": "#go"/);
-    assert.match((await executeStandaloneTool(b, "session_click", { ref: "@e2" })).content[0].text, /"clicked": "@e2"/);
-    assert.match((await executeStandaloneTool(b, "session_fill", { ref: "@e3" })).content[0].text, /"filled": "@e3"/);
-    assert.match((await executeStandaloneTool(b, "session_fill", { selector: "#q", value: "v" })).content[0].text, /"filled": "#q"/);
+    assert.match((await executeStandaloneTool(b, "session_click", { selector: "#go" })).content[0].text, /"clicked":"#go"/);
+    assert.match((await executeStandaloneTool(b, "session_click", { ref: "@e2" })).content[0].text, /"clicked":"@e2"/);
+    assert.match((await executeStandaloneTool(b, "session_fill", { ref: "@e3" })).content[0].text, /"filled":"@e3"/);
+    assert.match((await executeStandaloneTool(b, "session_fill", { selector: "#q", value: "v" })).content[0].text, /"filled":"#q"/);
     await executeStandaloneTool(b, "session_select", { ref: "@e4", index: 0 });
     assert.match((await executeStandaloneTool(b, "session_wait", { condition: "url", timeoutMs: 500 })).content[0].text, /one\.test/);
-    assert.match((await executeStandaloneTool(b, "session_wait", { condition: "selector", timeoutMs: 500 })).content[0].text, /"condition": "selector"/);
+    assert.match((await executeStandaloneTool(b, "session_wait", { condition: "selector", timeoutMs: 500 })).content[0].text, /"condition":"selector"/);
     assert.ok(seen.some((e) => e.includes(`[data-t3rnel-ref='e2']`)), "a @ref was not translated to its attribute");
     assert.ok(seen.some((e) => e.includes('"#go"')));
   });

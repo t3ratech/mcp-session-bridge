@@ -41,7 +41,7 @@ test("every client the FAQ names is one the bridge declares support for", () => 
   }
 });
 
-test("the tool counts equal what the extension publishes, plus the bridge's own session_install", () => {
+test("the tool counts equal what the extension publishes, plus the bridge's own session_install and session_read_url", () => {
   const repo = t3rnelRepoRoot();
   const ext = join(repo, "products", "browser", "t3rnel-browser", "src");
   const registry = readFileSync(join(ext, "browser-tools.ts"), "utf8");
@@ -51,8 +51,8 @@ test("the tool counts equal what the extension publishes, plus the bridge's own 
   const internal = [...gate.slice(gate.indexOf("[", start), gate.indexOf("]);", start)).matchAll(/"([a-z0-9_]+)"/g)].map((m) => m[1]);
   const published = names.length - internal.length;
   assert.ok(flat(section).includes(`exposes ${published} browser tools`), `FAQ must say ${published}`);
-  assert.ok(flat(section).includes(`listing to ${published + 1}`), `FAQ must say ${published + 1}`);
-  assert.ok(published + 1 < 100, "the FAQ claims the listing is under the 100-tool ceiling");
+  assert.ok(flat(section).includes(`listing to ${published + 2}`), `FAQ must say ${published + 2}`);
+  assert.ok(published + 2 < 100, "the FAQ claims the listing is under the 100-tool ceiling");
 });
 
 test("the FAQ states the bridge is loopback-only, which the server enforces", () => {

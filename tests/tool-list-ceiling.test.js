@@ -111,7 +111,7 @@ describe("the tool list never exceeds the 100-tool ceiling clients enforce", () 
   test("an extension under the ceiling (1.3.0 publishes 94) loses nothing", async () => {
     await connectExtension(extensionTools(94));
     const names = (await call("tools/list")).result.tools.map((t) => t.name);
-    assert.equal(names.length, 95, "a list under the ceiling was trimmed");
+    assert.equal(names.length, 96, "a list under the ceiling was trimmed"); // 94 + session_install + session_read_url
     assert.ok(names.includes("session_md_diff") && names.includes("session_check_spelling"));
   });
 });

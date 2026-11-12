@@ -459,7 +459,7 @@ export class StandaloneBrowser {
   }
 }
 
-const text = (value) => ({ content: [{ type: "text", text: typeof value === "string" ? value : JSON.stringify(value, null, 2) }] });
+const text = (value) => ({ content: [{ type: "text", text: typeof value === "string" ? value : JSON.stringify(value) }] });
 
 /**
  * Executes one session_* tool against the standalone browser. Mirrors the
@@ -539,7 +539,7 @@ export async function executeStandaloneTool(browser, name, args = {}) {
       // every standalone evaluation ran the literal string "undefined" and returned it.
       // The tool looked like it worked and had never worked at all.
       const value = await browser.evalIn(browser.targetFor(args.tabId), args.code, true);
-      return text(value === undefined ? "undefined" : typeof value === "string" ? value : JSON.stringify(value, null, 2));
+      return text(value === undefined ? "undefined" : typeof value === "string" ? value : JSON.stringify(value));
     }
     case "session_screenshot": {
       const targetId = browser.targetFor(args.tabId);

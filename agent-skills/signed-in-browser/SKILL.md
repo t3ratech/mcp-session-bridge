@@ -97,10 +97,11 @@ how the site used to look.
 
 ## What the extension adds
 
-The bridge on its own serves 14 tools against a standalone browser: `session_install`,
+The bridge on its own serves 15 tools against a standalone browser: `session_install`,
 `session_health`, `session_list_tabs`, `session_navigate`, `session_snapshot`,
 `session_read_page`, `session_click`, `session_fill`, `session_type`, `session_select`,
-`session_press`, `session_evaluate`, `session_screenshot` and `session_wait`. That is
+`session_press`, `session_evaluate`, `session_screenshot`, `session_wait` and `session_read_url`
+(a public page as Markdown, without opening a tab). That is
 enough to browse, read and fill in almost anything.
 
 The other eight refuse without the extension, so don't plan a standalone run around them:
@@ -110,7 +111,7 @@ The other eight refuse without the extension, so don't plan a standalone run aro
 credential vault lives in the extension, so sign in by hand once in the standalone profile
 instead and the session persists.
 
-With the free T3rnel Browser extension connected, the same server serves 98 — the extra
+With the free T3rnel Browser extension connected, the same server serves 99 — the extra
 ones run inside the user's real tabs:
 
 - **CSS extraction** — copy an element's *computed* styles out as a component
@@ -142,7 +143,7 @@ Add the bridge to any MCP client as a stdio server:
 }
 ```
 
-That alone gives you the 14 standalone tools against a dedicated automation browser —
+That alone gives you the 15 standalone tools against a dedicated automation browser —
 free, no extension, no account. If the task is a public page, stop here.
 
 ### Adding the signed-in half

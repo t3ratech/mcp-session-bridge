@@ -53,7 +53,7 @@ describe("the skill describes the server that actually exists", () => {
     );
     const iOpen = gate.indexOf("[", gate.indexOf("export const MCP_INTERNAL_ONLY"));
     const internal = [...gate.slice(iOpen, gate.indexOf("]);", iOpen)).matchAll(/"([a-z0-9_]+)"/g)];
-    assert.match(skill, new RegExp(`serves ${names.length - internal.length + 1}\\b`), "the with-extension count is stale");
+    assert.match(skill, new RegExp(`serves ${names.length - internal.length + 2}\\b`), "the with-extension count is stale");
   });
 
   test("tells the agent which tools refuse without the extension", () => {
@@ -252,9 +252,9 @@ describe("the README states the counts the server serves", () => {
     const internal = [...gate.slice(iOpen, gate.indexOf("]);", iOpen)).matchAll(/"([a-z0-9_]+)"/g)];
     const extension = names.length - internal.length;
     assert.match(readme, new RegExp(`exposes ${extension} browser tools\\b`), `the README does not say the extension exposes ${extension}`);
-    assert.match(readme, new RegExp(`listing to ${extension + 1}\\b`), `the README does not say the bridge lists ${extension + 1}`);
+    assert.match(readme, new RegExp(`listing to ${extension + 2}\\b`), `the README does not say the bridge lists ${extension + 2}`);
     // Some MCP clients refuse a server listing more than 100 tools. The README promises
     // the count stays under it, so the promise is a test, not a hope.
-    assert.ok(extension + 1 <= 100, `the bridge lists ${extension + 1} tools, over the 100-tool client limit the README promises to stay under`);
+    assert.ok(extension + 2 <= 100, `the bridge lists ${extension + 2} tools, over the 100-tool client limit the README promises to stay under`);
   });
 });

@@ -69,7 +69,7 @@ describe("the MCPB manifest describes the server that is actually shipped", () =
     );
     const iOpen = gate.indexOf("[", gate.indexOf("export const MCP_INTERNAL_ONLY"));
     const internal = [...gate.slice(iOpen, gate.indexOf("]);", iOpen)).matchAll(/"([a-z0-9_]+)"/g)];
-    const published = names.length - internal.length + 1; // +1 for session_install
+    const published = names.length - internal.length + 2; // +2: session_install and session_read_url
     assert.match(manifest.long_description, new RegExp(`serves ${published}\\b`));
   });
 
@@ -85,7 +85,7 @@ describe("the MCPB manifest describes the server that is actually shipped", () =
     );
     const iOpen = gate.indexOf("[", gate.indexOf("export const MCP_INTERNAL_ONLY"));
     const internal = [...gate.slice(iOpen, gate.indexOf("]);", iOpen)).matchAll(/"([a-z0-9_]+)"/g)];
-    const published = names.length - internal.length + 1;
+    const published = names.length - internal.length + 2; // session_install and session_read_url
     assert.match(
       pkg.description,
       new RegExp(`\\b${STANDALONE_TOOLS.length} tools on its own\\b`),

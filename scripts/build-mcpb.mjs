@@ -112,7 +112,7 @@ export function buildManifest() {
   // 8 of them refuse without the extension, so a caller in standalone mode was promised
   // recording and a credential vault and discovered the truth one error at a time.
   const standalone = STANDALONE_TOOLS.length;
-  const withExtension = extensionToolCount() + 1; // the extension's surface plus session_install
+  const withExtension = extensionToolCount() + 2; // the extension's surface plus session_install and session_read_url
   return {
     manifest_version: "0.3",
     name: "t3rnel-session-bridge",

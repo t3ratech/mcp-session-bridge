@@ -2,10 +2,12 @@
  * The MCP server driven in-process: JSON-RPC in on a stream, answers read back, with a
  * scripted extension on the WebSocket and a scripted legacy relay on a Unix socket.
  */
-import { describe, it, afterEach, before } from "node:test";
+import { describe, it, afterEach, before, after } from "node:test";
 import assert from "node:assert/strict";
 import net from "node:net";
 import { PassThrough } from "node:stream";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -13,6 +15,7 @@ import { join } from "node:path";
 before(() => { process.env.HOME = mkdtempSync(join(tmpdir(), "t3rnel-server-home-")); });
 const { startMcpServer, parseTimeoutMs, RelayClient } = await import("../src/server.js");
 const { connectWebSocket } = await import("../src/ws.js");
+const { parseToolProfiles } = await import("../src/profiles.js");
 const { createFrameDecoder, encodeFrame } = await import("../src/framing.js");
 
 const servers = [];
@@ -59,7 +62,7 @@ async function extension(port, handle) {
 
 const TOOLS = [
   { name: "browser_click", description: "Click", inputSchema: { type: "object", properties: { selector: { type: "string" }, ref: { type: "string" }, tabId: { type: "integer" } }, additionalProperties: false, requireOneOf: ["selector", "ref"] } },
-  { name: "browser_snapshot", description: "Snapshot", inputSchema: { type: "object", properties: { tabId: { type: "integer" } }, additionalProperties: false } },
+  { name: "browser_snapshot", description: "Snapshot", inputSchema: { type: "object", properties: { tabId: { type: "integer" }, format: { type: "string", enum: ["compact", "json"] } }, additionalProperties: false } },
   { name: "browser_vault_list", description: "Vault", inputSchema: { type: "object", properties: {}, additionalProperties: false } },
 ];
 
@@ -154,7 +157,7 @@ describe("with an extension connected", () => {
     });
     await until(() => ws.isConnected());
     const listed = (await h.rpc(1, "tools/list")).result.tools.map((t) => t.name);
-    assert.deepEqual(listed.sort(), ["session_click", "session_install", "session_snapshot", "session_vault_list"]);
+    assert.deepEqual(listed.sort(), ["session_click", "session_install", "session_read_url", "session_snapshot", "session_vault_list"]);
     assert.match((await h.rpc(2, "tools/call", { name: "session_click", arguments: { ref: "@e1" } })).error.message, /No snapshot to resolve @e1/);
     await h.rpc(3, "tools/call", { name: "session_snapshot", arguments: {} });
     await h.rpc(4, "tools/call", { name: "session_click", arguments: { ref: "@e1" } });
@@ -163,6 +166,72 @@ describe("with an extension connected", () => {
     await h.rpc(7, "tools/call", { name: "session_vault_list", arguments: {} });
     assert.deepEqual(calls.filter((c) => c.name === "browser_click").map((c) => c.arguments), [{ selector: "#go" }, { selector: "#explicit" }]);
     assert.deepEqual(calls.find((c) => c.name === "browser_vault_list").arguments, {});
+  });
+
+  it("lists only the chosen tool profiles, yet still runs a tool that is not listed", async () => {
+    const calls = [];
+    const h = server({ mode: "extension", extra: { tools: parseToolProfiles("core") } });
+    const ws = await h.s.wsStarted;
+    await extension(ws.port, (m) => {
+      if (m.method === "tools/list") return { result: { tools: TOOLS } };
+      calls.push(m.params.name);
+      return { result: { content: [{ type: "text", text: "ok" }] } };
+    });
+    await until(() => ws.isConnected());
+    const listed = (await h.rpc(1, "tools/list")).result.tools.map((t) => t.name);
+    assert.deepEqual(listed.sort(), ["session_click", "session_install", "session_read_url", "session_snapshot"]);
+    const hidden = await h.rpc(2, "tools/call", { name: "session_vault_list", arguments: {} });
+    assert.equal(hidden.error, undefined);
+    assert.deepEqual(calls, ["browser_vault_list"]);
+  });
+
+  it("lists a profile's tools when it is asked for alongside core", async () => {
+    const h = server({ mode: "extension", extra: { tools: parseToolProfiles("vault") } });
+    const ws = await h.s.wsStarted;
+    await extension(ws.port, (m) => (m.method === "tools/list" ? { result: { tools: TOOLS } } : { result: { content: [] } }));
+    await until(() => ws.isConnected());
+    const listed = (await h.rpc(1, "tools/list")).result.tools.map((t) => t.name);
+    assert.deepEqual(listed.sort(), ["session_click", "session_install", "session_read_url", "session_snapshot", "session_vault_list"]);
+  });
+
+  it("filters the standalone tool list too, with no extension connected", async () => {
+    const h = server({ mode: "standalone", extra: { tools: parseToolProfiles("core") } });
+    const listed = (await h.rpc(1, "tools/list")).result.tools.map((t) => t.name);
+    assert.ok(listed.includes("session_click"));
+    assert.ok(!listed.includes("session_vault_list"), "a vault tool leaked into the core profile");
+  });
+
+  it("resolves refs from the extension's compact snapshot, handing the ref on as the selector", async () => {
+    const calls = [];
+    const h = server({ mode: "extension" });
+    const ws = await h.s.wsStarted;
+    const compact = ['url: https://shop.test/', 'title: Shop', '- button "Buy" [@e1]', '- textbox "Email" [@e2, type=email]', '- link [@e3, sel="nav > a"]'].join("\n");
+    await extension(ws.port, (m) => {
+      if (m.method === "tools/list") return { result: { tools: TOOLS } };
+      calls.push(m.params);
+      return { result: { content: [{ type: "text", text: m.params.name === "browser_snapshot" ? compact : "ok" }] } };
+    });
+    await until(() => ws.isConnected());
+    await h.rpc(1, "tools/call", { name: "session_snapshot", arguments: {} });
+    assert.equal((await h.rpc(2, "tools/call", { name: "session_click", arguments: { ref: "@e2" } })).error, undefined);
+    assert.equal((await h.rpc(3, "tools/call", { name: "session_click", arguments: { ref: "e3" } })).error, undefined);
+    assert.match((await h.rpc(4, "tools/call", { name: "session_click", arguments: { ref: "@e9" } })).error.message, /@e9 is not in the last snapshot/);
+    assert.deepEqual(calls.filter((c) => c.name === "browser_click").map((c) => c.arguments), [{ selector: "@e2" }, { selector: "@e3" }]);
+  });
+
+  it("passes the snapshot format through to the extension and refuses an unknown one", async () => {
+    const seen = [];
+    const h = server({ mode: "extension" });
+    const ws = await h.s.wsStarted;
+    await extension(ws.port, (m) => {
+      if (m.method === "tools/list") return { result: { tools: TOOLS } };
+      seen.push(m.params.arguments);
+      return { result: { content: [{ type: "text", text: "- link [@e1]" }] } };
+    });
+    await until(() => ws.isConnected());
+    await h.rpc(1, "tools/call", { name: "session_snapshot", arguments: { format: "json" } });
+    assert.deepEqual(seen, [{ format: "json" }]);
+    assert.ok((await h.rpc(2, "tools/call", { name: "session_snapshot", arguments: { format: "xml" } })).error);
   });
 
   it("ignores a snapshot whose text is not JSON or has no elements", async () => {
@@ -397,5 +466,81 @@ describe("the last server paths", () => {
       srv.close();
     }
     assert.ok(written.some((w) => w.includes("connected to relay")));
+  });
+});
+
+describe("tool profiles from the environment and the command line", () => {
+  const serverPath = fileURLToPath(new URL("../src/server.js", import.meta.url));
+  const run = (args, env = {}) => spawnSync(process.execPath, [serverPath, ...args], {
+    env: { ...process.env, HOME: mkdtempSync(join(tmpdir(), "t3rnel-cli-home-")), T3RNEL_SESSION_MODE: "standalone", ...env },
+    input: "", encoding: "utf8", timeout: 15000,
+  });
+
+  it("refuses an unknown profile at startup, naming it", () => {
+    const bogus = run(["--tools", "bogus"]);
+    assert.notEqual(bogus.status, 0);
+    assert.match(bogus.stderr, /unknown tool profile "bogus"/);
+    const fromEnv = run([], { T3RNEL_SESSION_TOOLS: "nope" });
+    assert.notEqual(fromEnv.status, 0);
+    assert.match(fromEnv.stderr, /unknown tool profile "nope"/);
+  });
+
+  it("refuses --tools given no value rather than listing everything", () => {
+    const result = run(["--tools"]);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /--tools needs a value/);
+  });
+
+  it("documents both ways to choose profiles", () => {
+    const help = run(["--help"]).stdout;
+    assert.match(help, /T3RNEL_SESSION_TOOLS/);
+    assert.match(help, /--tools core,network/);
+  });
+});
+
+describe("session_read_url through the server", () => {
+  let page;
+  let origin;
+  before(async () => {
+    const http = await import("node:http");
+    page = http.createServer((req, res) => { res.writeHead(200, { "content-type": "text/markdown" }); res.end("# Served\n\nbody\n"); });
+    await new Promise((resolve) => page.listen(0, "127.0.0.1", resolve));
+    origin = `http://127.0.0.1:${page.address().port}`;
+  });
+  after(() => { page.closeAllConnections(); page.close(); });
+
+  it("is listed and answers with no browser at all", async () => {
+    const h = server({ mode: "standalone", extra: { readUrlPolicy: () => true } });
+    assert.ok((await h.rpc(1, "tools/list")).result.tools.some((t) => t.name === "session_read_url"));
+    const result = await h.rpc(2, "tools/call", { name: "session_read_url", arguments: { url: `${origin}/x` } });
+    assert.match(result.result.content[0].text, /source: served as markdown[\s\S]*# Served/);
+  });
+
+  it("is listed and answered here when an extension is connected, without asking the extension", async () => {
+    const calls = [];
+    const h = server({ mode: "extension", extra: { readUrlPolicy: () => true } });
+    const ws = await h.s.wsStarted;
+    await extension(ws.port, (m) => {
+      if (m.method === "tools/list") return { result: { tools: TOOLS } };
+      calls.push(m.params.name);
+      return { result: { content: [] } };
+    });
+    await until(() => ws.isConnected());
+    assert.ok((await h.rpc(1, "tools/list")).result.tools.some((t) => t.name === "session_read_url"));
+    const result = await h.rpc(2, "tools/call", { name: "session_read_url", arguments: { url: origin, outline: true } });
+    assert.match(result.result.content[0].text, /\n- Served$/);
+    assert.deepEqual(calls, []);
+  });
+
+  it("refuses a loopback address under the default policy, as a tool error naming why", async () => {
+    const h = server({ mode: "standalone" });
+    const result = await h.rpc(1, "tools/call", { name: "session_read_url", arguments: { url: `${origin}/` } });
+    assert.match(result.error.message, /not a public address/);
+  });
+
+  it("validates its arguments against its schema", async () => {
+    const h = server({ mode: "standalone" });
+    assert.ok((await h.rpc(1, "tools/call", { name: "session_read_url", arguments: {} })).error);
+    assert.ok((await h.rpc(2, "tools/call", { name: "session_read_url", arguments: { url: origin, maxChars: 0 } })).error);
   });
 });

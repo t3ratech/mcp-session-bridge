@@ -33,11 +33,13 @@ import { createInterface } from "node:readline";
 import net from "node:net";
 import { constants as osConstants } from "node:os";
 import { createFrameDecoder, encodeFrame } from "./framing.js";
+import { filterByProfiles, parseToolProfiles } from "./profiles.js";
 import { SESSION_TOOLS, STANDALONE_TOOLS, SUPPORTED_MCP_CLIENTS, findTool, toWireTool, validateArguments } from "./tools.js";
 import { resolveSocketPath } from "./relay.js";
 import { startExtensionWebSocket } from "./ws-server.js";
 import { defaultHostPath, installHosts, uninstallHosts, printInstallSummary } from "./install.js";
 import { StandaloneBrowser, executeStandaloneTool } from "./cdp.js";
+import { readUrl } from "./read-url.js";
 import { existsSync, realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
@@ -251,6 +253,10 @@ export function startMcpServer({
   standalone = new StandaloneBrowser({ headless: env.T3RNEL_SESSION_HEADLESS === "1" }),
   /** Overrides T3RNEL_SESSION_PORT; 0 binds an ephemeral port, for tests. */
   wsBasePort,
+  /** The tool profiles to list (see profiles.js); null lists every tool. Unlisted tools stay callable by name. */
+  tools: listedProfiles = parseToolProfiles(env.T3RNEL_SESSION_TOOLS),
+  /** Which addresses session_read_url may connect to; the default is public addresses only. A test lifts it to reach a loopback server. */
+  readUrlPolicy,
 } = {}) {
   const log = (line) => stderr.write(`${line}\n`);
   const relay = new RelayClient(resolveSocketPath(env), { timeoutMs, log });
@@ -417,7 +423,7 @@ export function startMcpServer({
   const MCP_DROP_WHEN_OVER_CEILING = ["session_md_diff", "session_check_spelling"];
 
   async function listedTools() {
-    const bridgeOnly = [findTool("session_install")].filter(Boolean);
+    const bridgeOnly = [findTool("session_install"), findTool("session_read_url")].filter(Boolean);
     let tools;
     if (mode === "extension") {
       tools = await getExtensionSessionTools();
@@ -428,7 +434,7 @@ export function startMcpServer({
     if (!tools) {
       // Only "auto" can gain the extension's tools later; "standalone" never will.
       listedWithoutExtension = mode === "auto";
-      return SESSION_TOOLS.map(toWireTool);
+      return filterByProfiles(SESSION_TOOLS, listedProfiles).map(toWireTool);
     }
     listedWithoutExtension = false;
     const names = new Set(tools.map((t) => t.name));
@@ -436,11 +442,11 @@ export function startMcpServer({
     const listed = merged.length > MCP_TOOL_LIST_CEILING
       ? merged.filter((t) => !MCP_DROP_WHEN_OVER_CEILING.includes(t.name))
       : merged;
-    return listed.map(toWireTool);
+    return filterByProfiles(listed, listedProfiles).map(toWireTool);
   }
 
   async function resolveTool(name) {
-    if (name === "session_login" || name === "session_store_login") return findTool(name);
+    if (name === "session_login" || name === "session_store_login" || name === "session_read_url") return findTool(name);
     if (mode === "extension" || (mode === "auto" && extensionConnected())) {
       const tools = extensionSessionTools ?? await getExtensionSessionTools();
       return tools.find((tool) => tool.name === name) ?? null;
@@ -469,7 +475,17 @@ export function startMcpServer({
 
   function rememberRefs(tabId, payload) {
     let parsed;
-    try { parsed = typeof payload === "string" ? JSON.parse(payload) : payload; } catch { return; }
+    try { parsed = typeof payload === "string" ? JSON.parse(payload) : payload; } catch {
+      // The extension's default snapshot is compact text, one `- role "name" [@e3, …]` line per
+      // element, with no selectors. The extension resolves an @eN it is handed as a selector,
+      // so each ref listed maps to itself.
+      const refs = [...String(payload).matchAll(/^- .*?\[@(e\d+)\b/gm)].map((m) => m[1]);
+      if (refs.length === 0) return;
+      const map = new Map();
+      for (const ref of refs) { map.set(`@${ref}`, `@${ref}`); map.set(ref, `@${ref}`); }
+      refsByTab.set(tabId ?? "active", map);
+      return;
+    }
     const elements = parsed?.elements;
     if (!Array.isArray(elements)) return;
     const map = new Map();
@@ -539,6 +555,15 @@ export function startMcpServer({
     // ref onto the element itself and resolves it there, and has no selector to hand back.
     const validation = validateArguments(args, tool.inputSchema);
     if (validation) throw new McpError(-32602, validation);
+    // Answered here in every mode: it is a plain fetch, so it neither needs the browser nor
+    // is made better by one.
+    if (name === "session_read_url") {
+      try {
+        return asToolResult(await readUrl(args, { addressPolicy: readUrlPolicy }));
+      } catch (error) {
+        throw new McpError(-32000, error.message);
+      }
+    }
     const forExtension = () => (tool.inputSchema.properties?.selector ? resolveRef(args) : args);
 
     if (mode === "standalone") {
@@ -670,6 +695,7 @@ function printUsage() {
   mcp-session-bridge              Run the MCP server on stdio (what MCP clients launch)
   mcp-session-bridge --install    Register the native messaging host (legacy pre-1.3 transport only)
   mcp-session-bridge --uninstall  Remove the native messaging host registration
+  mcp-session-bridge --tools core,network   List only those tool profiles (see T3RNEL_SESSION_TOOLS)
 
 Environment:
   T3RNEL_SESSION_MODE         auto (default) | extension | standalone
@@ -679,6 +705,10 @@ Environment:
   T3RNEL_SESSION_PROFILE      browser profile dir for standalone mode
   T3RNEL_SESSION_HEADLESS     "1" runs the standalone browser headless
   T3RNEL_SESSION_TIMEOUT_MS   per-call timeout (default 30000)
+  T3RNEL_SESSION_TOOLS        which tool profiles to list: all (default), or any of core, network, design,
+                              test, vault, page, comma-separated (core is always included). A client reads the
+                              whole list into the model's context, so core alone is about a quarter of it;
+                              a tool that is not listed can still be called by name. Same as --tools <value>.
 
 Supported MCP clients:
   ${SUPPORTED_MCP_CLIENTS}
@@ -722,7 +752,10 @@ export function main(argv = process.argv.slice(2)) {
     for (const path of removed) console.log(`Removed native messaging host: ${path}`);
     if (removed.length === 0) console.log("No native messaging host registration found.");
   } else {
-    const server = startMcpServer();
+    const toolsFlag = args.indexOf("--tools");
+    if (toolsFlag >= 0 && !args[toolsFlag + 1]) throw new Error("--tools needs a value: all, or a comma-separated list of core, network, design, test, vault, page");
+    const env = toolsFlag >= 0 ? { ...process.env, T3RNEL_SESSION_TOOLS: args[toolsFlag + 1] } : process.env;
+    const server = startMcpServer({ env });
     /**
      * A stdio client stops this server with a signal as often as by closing stdin, and only
      * the stdin path cleaned up — so every SIGTERM left the standalone browser running with

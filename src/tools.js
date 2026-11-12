@@ -27,6 +27,30 @@ export const TOOL_DEFINITIONS = [
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
   {
+    name: "session_read_url",
+    annotations: {
+      title: "Read a public URL as Markdown",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+    description:
+      "Fetch a public web page and return it as Markdown, without opening a tab. Asks the site for text/markdown first and converts its HTML otherwise, so a page costs a fraction of the tokens of session_snapshot or session_read_page. Reads what a signed-out visitor sees: for a page behind a login use session_navigate then session_dom_compress. Refuses non-http(s) URLs, URLs carrying credentials, and any address that is not on the public internet (loopback, private ranges, cloud metadata), at connect time and on every redirect; reads at most 2 MB, then returns the first maxChars characters (default 30000). Returns text starting with url, source (served as markdown, converted from html, or served as another text type) and chars, then the Markdown. outline returns only the headings; filter returns only the sections whose heading contains the text; llmsTxt reads the site's /llms.txt index instead.",
+    inputSchema: {
+      type: "object",
+      required: ["url"],
+      properties: {
+        url: { type: "string", format: "uri", examples: ["https://docs.example.com/guide"], description: "Absolute http(s) URL of a public page" },
+        outline: { type: "boolean", default: false, description: "Return only the page's headings, indented by level" },
+        filter: { type: "string", minLength: 1, description: "Return only the sections whose heading contains this text, case-insensitively" },
+        llmsTxt: { type: "boolean", default: false, description: "Read the site's /llms.txt instead of the URL's own page" },
+        maxChars: { type: "integer", minimum: 1, maximum: 200000, default: 30000, description: "Characters of Markdown to return (default 30000)" },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "session_health",
     annotations: {
       title: "Session health check",
@@ -116,10 +140,17 @@ export const TOOL_DEFINITIONS = [
       openWorldHint: true,
     },
     description:
-      "Capture a semantic map of a page for deciding what to act on. Returns {url, title, elements}, where each element is {ref, tag, text} — ref being an @eN handle that session_click, session_fill, session_type, session_select and session_press all accept in place of a CSS selector. Prefer this over session_read_page when the goal is to interact rather than to read: it lists only elements a user could actually operate. Skips zero-size and hidden elements, caps each label at 120 characters, and stops at 200 elements.",
+      "Capture a semantic map of a page for deciding what to act on. With the extension connected it returns one compact line per element — role, name, and an @eN ref — and with format json (always, in the standalone browser) {url, title, elements}, where each element is {ref, tag, text}. Either way ref is an @eN handle that session_click, session_fill, session_type, session_select and session_press all accept in place of a CSS selector. Prefer this over session_read_page when the goal is to interact rather than to read: it lists only elements a user could actually operate. Skips zero-size and hidden elements, caps each label at 120 characters, and stops at 200 elements.",
     inputSchema: {
       type: "object",
-      properties: { tabId: { type: "integer", description: "Tab to snapshot; uses the active tab when omitted" } },
+      properties: {
+        tabId: { type: "integer", description: "Tab to snapshot; uses the active tab when omitted" },
+        format: {
+          type: "string",
+          enum: ["compact", "json"],
+          description: "With the T3rnel Browser extension connected: compact (default) is one short line per element, about a tenth of the tokens; json is the structured form with selectors. The standalone browser always returns json.",
+        },
+      },
       additionalProperties: false,
     },
   },
